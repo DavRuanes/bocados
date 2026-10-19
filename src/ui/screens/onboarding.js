@@ -17,6 +17,15 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
   ];
   let i = 0;
 
+  // Botón atrás de Android: pregunta anterior; en la primera, cancela la edición
+  // (o, en la primera vez, deja que Android cierre la app).
+  app.onboardingBack = () => {
+    if (i > 0) { go(-1); return true; }
+    if (initial) { finish(null); return true; }
+    return false;
+  };
+  const finish = (result) => { app.onboardingBack = null; onDone(result); };
+
   const go = (delta) => {
     i = Math.max(0, Math.min(steps().length - 1, i + delta));
     render();
@@ -31,7 +40,7 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
     root.replaceChildren(h("main", { class: "ob" },
       h("div", { class: "top" },
         i > 0 || initial
-          ? h("button", { class: "back", type: "button", onclick: () => (i === 0 ? onDone(null) : go(-1)) }, icon("back"), i === 0 ? "Cancelar" : "Atrás")
+          ? h("button", { class: "back", type: "button", onclick: () => (i === 0 ? finish(null) : go(-1)) }, icon("back"), i === 0 ? "Cancelar" : "Atrás")
           : h("div", { class: "brand" }, brandMark(), "Bocado"),
         step !== "welcome" ? h("span", { class: "meta num" }, `${qSteps.indexOf(step) + 1} de ${qSteps.length}`) : null),
       step !== "welcome" ? h("div", { class: "progress", role: "progressbar", "aria-valuenow": String(progress), "aria-valuemin": "0", "aria-valuemax": "100" }, h("i", { style: { width: `${progress}%` } })) : null,
@@ -106,7 +115,7 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
       const p = v.profile;
       const c = dailyTarget(p);
       const factor = ACTIVITY[p.activity].factor;
-      const finish = () => onDone({ ...p, target: c.target, calc: c, updatedAt: new Date().toISOString(), since: initial?.since ?? dateKey() });
+      const save = () => finish({ ...p, target: c.target, calc: c, updatedAt: new Date().toISOString(), since: initial?.since ?? dateKey() });
       return [
         question("Tu límite diario"),
         h("section", { class: "panel" },
@@ -118,11 +127,14 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
             h("div", { class: "row total" }, h("span", {}, "Tu límite"), h("b", { class: "num" }, `${formatInt(c.target)} kcal`))),
           c.clampedToFloor
             ? h("p", { class: "notice" }, `He subido tu límite a ${formatInt(c.floor)} kcal, el mínimo recomendado para ${p.sex === "mujer" ? "mujeres" : "hombres"} sin supervisión de un profesional.`)
+            : null,
+          c.belowFloor
+            ? h("p", { class: "notice" }, `Tu gasto estimado es menor que ${formatInt(c.floor)} kcal, el mínimo que se recomienda no bajar sin supervisión. Te conviene consultarlo con un profesional sanitario.`)
             : null),
         h("p", { class: "formula" },
           `Fórmula de Mifflin-St Jeor: 10 × peso + 6,25 × altura − 5 × edad ${p.sex === "hombre" ? "+ 5" : "− 161"}, multiplicado por tu nivel de actividad. `,
           "Déficit y mínimos según Harvard Health. Es una estimación: revisa tu peso cada semana y ajusta tus datos si hace falta."),
-        h("div", { class: "foot" }, h("button", { class: "btn primary block big", type: "button", onclick: finish }, initial ? "Guardar mis datos" : "Empezar a contar")),
+        h("div", { class: "foot" }, h("button", { class: "btn primary block big", type: "button", onclick: save }, initial ? "Guardar mis datos" : "Empezar a contar")),
       ];
     },
   };

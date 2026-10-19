@@ -19,7 +19,8 @@ test("resolvePlate uses USDA values when found and the AI estimate otherwise", a
     if (q === "french fries") throw new Error("429");
     return null;
   };
-  const r = await resolvePlate(plate, lookup);
+  const { items: r, problem } = await resolvePlate(plate, lookup);
+  assert.equal(problem, null);
   assert.deepEqual(calls, ["chicken breast grilled", "french fries", "weird sauce"]);
   assert.equal(r[0].source, "usda");
   assert.equal(r[0].sourceName, "Chicken, breast, grilled");
@@ -44,4 +45,15 @@ test("entryFromItem with no data stores zero kcal and keeps the item visible", (
   assert.equal(e.kcal, 0);
   assert.equal(e.prot, null);
   assert.equal(e.detail.origin, "sin-datos");
+});
+
+test("resolvePlate stops looking up and reports the problem when USDA refuses the key or the limit is spent", async () => {
+  for (const kind of ["limit", "auth"]) {
+    let n = 0;
+    const lookup = async () => { n += 1; const e = new Error(`USDA ${kind}`); e.kind = kind; throw e; };
+    const { items, problem } = await resolvePlate(plate, lookup);
+    assert.equal(n, 1);
+    assert.equal(problem, `USDA ${kind}`);
+    assert.deepEqual(items.map((i) => i.source), ["estimado", "estimado", "sin-datos"]);
+  }
 });

@@ -1,5 +1,5 @@
 // Estado y navegación de la app.
-import { h, icon } from "./dom.js";
+import { h, icon, toast } from "./dom.js";
 import { dateKey } from "../core/day.js";
 import { buildMidnightNotifications } from "../core/notify.js";
 import { sumEntries } from "../core/day.js";
@@ -83,16 +83,17 @@ export function createApp({ root, repo, screens }) {
     },
 
     // Si ha pasado la medianoche con la app abierta, el día nuevo empieza a cero.
+    // Solo se repinta si se está en una pantalla principal: una foto que se está
+    // analizando o un formulario a medias no se pierden.
     async checkDayChange() {
       const now = dateKey();
-      if (now !== app.today) {
-        app.today = now;
-        if (app.profile) {
-          await repo.setDayTarget(now, app.profile.target);
-          await app.reschedule();
-          await app.setTab(app.tab);
-        }
-      }
+      if (now === app.today) return;
+      app.today = now;
+      if (!app.profile || app.onboardingBack) return;
+      await repo.setDayTarget(now, app.profile.target);
+      await app.reschedule();
+      if (app.stack.length === 1) await app.show();
+      toast("Ha empezado un nuevo día.");
     },
 
     async reschedule() {

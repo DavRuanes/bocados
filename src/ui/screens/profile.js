@@ -3,6 +3,7 @@ import { ACTIVITY, PACES, GOALS } from "../../core/calc.js";
 import { dateKey, formatInt, formatDec } from "../../core/day.js";
 import { BUILT_IN_GROQ_KEY } from "../../api/groq.js";
 import { startOnboarding } from "./onboarding.js";
+import { isNative, exactAlarmGranted, requestExactAlarm, cancelNotifications } from "../../platform.js";
 
 export function profileScreen(app) {
   return {
@@ -10,6 +11,7 @@ export function profileScreen(app) {
       const p = app.profile;
       const groqOwn = (await app.repo.getSetting("groqKey")) || "";
       const usdaOwn = (await app.repo.getSetting("usdaKey")) || "";
+      const exact = await exactAlarmGranted();
 
       const kv = (k, v) => h("div", { class: "kv" }, h("span", { class: "muted" }, k), h("b", {}, v));
 
@@ -36,16 +38,20 @@ export function profileScreen(app) {
           await app.refresh();
         } },
           h("label", { for: id }, label),
-          h("div", { style: { display: "flex", gap: "8px" } },
-            h("div", { class: "input with-unit", style: { flex: "1" } }, input),
-            h("button", { class: "btn", type: "submit" }, "Guardar")),
+          h("div", { style: { display: "flex", gap: "8px", minWidth: "0" } },
+            h("div", { class: "input with-unit", style: { flex: "1 1 auto", minWidth: "0" } }, input),
+            h("button", { class: "btn", type: "submit", style: { flex: "none" } }, "Guardar")),
           help);
       };
 
       const confirmBox = h("div", { class: "panel", hidden: true, role: "alertdialog", "aria-label": "Confirmar borrado de datos" },
         h("p", {}, "Se borrarán tu perfil, todas tus comidas y el historial de este móvil. No se puede deshacer."),
         h("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap" } },
-          h("button", { class: "btn danger", type: "button", onclick: async () => { await app.repo.reset(); location.reload(); } }, "Sí, borrar todo"),
+          h("button", { class: "btn danger", type: "button", onclick: async () => {
+            await cancelNotifications().catch(() => {});
+            await app.repo.reset();
+            location.reload();
+          } }, "Sí, borrar todo"),
           h("button", { class: "btn", type: "button", onclick: () => { confirmBox.hidden = true; } }, "Cancelar")));
 
       return h("main", { class: "screen" },
@@ -58,7 +64,8 @@ export function profileScreen(app) {
             kv("Gasto en reposo", `${formatInt(p.calc.bmr)} kcal`),
             kv("Gasto diario con actividad", `${formatInt(p.calc.tdee)} kcal`),
             p.goal === "perder" ? kv("Déficit", `−${formatInt(p.calc.deficit)} kcal`) : null),
-          p.calc.clampedToFloor ? h("p", { class: "notice" }, `Tu límite está en el mínimo recomendado de ${formatInt(p.calc.floor)} kcal.`) : null),
+          p.calc.clampedToFloor ? h("p", { class: "notice" }, `Tu límite está en el mínimo recomendado de ${formatInt(p.calc.floor)} kcal.`) : null,
+          p.calc.belowFloor ? h("p", { class: "notice" }, `Tu gasto estimado es menor que ${formatInt(p.calc.floor)} kcal, el mínimo que se recomienda no bajar sin supervisión. Te conviene consultarlo con un profesional sanitario.`) : null),
         h("section", { class: "panel" },
           h("h2", {}, "Mis datos"),
           h("div", {},
@@ -83,7 +90,16 @@ export function profileScreen(app) {
           h("p", { class: "note" }, "El escáner de códigos de barras usa Open Food Facts y no necesita clave.")),
         h("section", { class: "panel" },
           h("h2", {}, "Aviso de medianoche"),
-          h("p", { class: "note" }, "Cada día a las 00:00 recibes una notificación con tu límite y lo que comiste. Si no te llega, activa las notificaciones de Bocado en los ajustes del móvil.")),
+          h("p", { class: "note" }, "Cada día a medianoche recibes una notificación con tu límite y lo que comiste. Si no te llega, activa las notificaciones de Bocado en los ajustes del móvil."),
+          isNative && !exact
+            ? [h("p", { class: "note" }, "Ahora Android puede retrasarla unos minutos. Para que llegue justo a las 00:00, permite a Bocado usar alarmas exactas."),
+               h("button", { class: "btn block", type: "button", onclick: async () => {
+                 const ok = await requestExactAlarm();
+                 await app.reschedule();
+                 toast(ok ? "El aviso llegará a las 00:00 en punto." : "Sin alarmas exactas, el aviso puede llegar unos minutos tarde.");
+                 await app.refresh();
+               } }, "Avisar a las 00:00 en punto")]
+            : isNative ? h("p", { class: "note" }, "El aviso está configurado para las 00:00 en punto.") : null),
         h("button", { class: "btn danger block", type: "button", onclick: () => { confirmBox.hidden = false; confirmBox.scrollIntoView({ block: "center" }); } }, "Borrar todos mis datos"),
         confirmBox,
         h("p", { class: "meta" }, "Fuentes: Mifflin-St Jeor (Frankenfield y cols., 2005), Harvard Health, NHS. Datos de alimentos: USDA FoodData Central (dominio público) y Open Food Facts (ODbL)."));

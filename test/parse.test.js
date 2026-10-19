@@ -122,3 +122,8 @@ test("normalizeLabel keeps only numbers it can read", () => {
   assert.deepEqual(r.per100, { kcal: 61, grasa: null, sat: null, hc: null, azuc: null, fibra: null, prot: 3.4, sal: null });
   assert.equal(normalizeLabel({ legible: false, motivo: "Reflejos" }).reason, "Reflejos");
 });
+
+test("parseGroqJson finds the JSON object even when the prose before it has braces", () => {
+  assert.deepEqual(parseGroqJson('Uso {formato} libre. Resultado: {"legible": true, "items": [{"nombre": "Pan"}]} gracias'), { legible: true, items: [{ nombre: "Pan" }] });
+  assert.deepEqual(parseGroqJson('{"texto": "llaves } dentro"}'), { texto: "llaves } dentro" });
+});

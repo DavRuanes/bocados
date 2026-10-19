@@ -3,6 +3,7 @@
 import { Capacitor } from "@capacitor/core";
 import { createRepo } from "./data/repo.js";
 import { downscaleBlob } from "./ui/image.js";
+import { toPluginNotifications, NOTIFY_IDS } from "./core/notify.js";
 
 export const isNative = Capacitor.isNativePlatform();
 
@@ -32,7 +33,7 @@ export async function pickPhoto(source) {
       const opts = { quality: 85, targetWidth: 1600, targetHeight: 1600, correctOrientation: true };
       const res = source === "camera"
         ? await Camera.takePhoto({ ...opts, saveToGallery: false, editable: "no" })
-        : (await Camera.chooseFromGallery({ ...opts, mediaType: 0, limit: 1 })).results?.[0];
+        : (await Camera.chooseFromGallery({ ...opts, mediaType: 0 })).results?.[0];
       if (!res?.webPath) return null;
       const blob = await (await fetch(res.webPath)).blob();
       return downscaleBlob(blob);
@@ -72,18 +73,21 @@ export async function scanBarcode(onProgress = () => {}) {
   const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
   if (!available) {
     onProgress("Preparando el escáner por primera vez…");
-    await new Promise((resolve, reject) => {
-      let handle;
-      BarcodeScanner.addListener("googleBarcodeScannerModuleInstallProgress", (ev) => {
-        if (ev.progress != null) onProgress(`Preparando el escáner: ${ev.progress}%`);
-        if (ev.state === 4) { handle?.remove(); resolve(); }
-        if (ev.state === 3 || ev.state === 5) {
-          handle?.remove();
-          reject(new Error("No se pudo preparar el escáner. Comprueba tu conexión y vuelve a intentarlo."));
-        }
-      }).then((h) => { handle = h; });
-      BarcodeScanner.installGoogleBarcodeScannerModule().catch(reject);
+    let settle;
+    const done = new Promise((resolve, reject) => { settle = { resolve, reject }; });
+    const handle = await BarcodeScanner.addListener("googleBarcodeScannerModuleInstallProgress", (ev) => {
+      if (ev.progress != null) onProgress(`Preparando el escáner: ${ev.progress}%`);
+      if (ev.state === 4) settle.resolve();
+      if (ev.state === 3 || ev.state === 5) settle.reject(new Error("No se pudo preparar el escáner. Comprueba tu conexión y vuelve a intentarlo."));
     });
+    try {
+      // Puede que Android ya lo esté descargando por la configuración del manifiesto:
+      // si la llamada falla, se espera al evento de progreso igualmente.
+      await BarcodeScanner.installGoogleBarcodeScannerModule().catch(() => {});
+      if (!(await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable()).available) await done;
+    } finally {
+      await handle.remove();
+    }
   }
 
   try {
@@ -98,6 +102,20 @@ export async function scanBarcode(onProgress = () => {}) {
 }
 
 // ---------- Notificaciones ----------
+// El permiso de alarma exacta solo se pide desde Perfil, con una explicación;
+// sin él, la notificación se programa inexacta y nunca se abren los ajustes por sorpresa.
+export async function exactAlarmGranted() {
+  if (!isNative) return false;
+  const { LocalNotifications } = await import("@capacitor/local-notifications");
+  try { return (await LocalNotifications.checkExactNotificationSetting()).exact_alarm === "granted"; } catch { return false; }
+}
+
+export async function requestExactAlarm() {
+  if (!isNative) return false;
+  const { LocalNotifications } = await import("@capacitor/local-notifications");
+  try { return (await LocalNotifications.changeExactNotificationSetting()).exact_alarm === "granted"; } catch { return false; }
+}
+
 export async function scheduleNotifications(list) {
   if (!isNative) return;
   const { LocalNotifications } = await import("@capacitor/local-notifications");
@@ -107,12 +125,13 @@ export async function scheduleNotifications(list) {
   }
   if (perm.display !== "granted") return;
   await LocalNotifications.cancel({ notifications: list.map((n) => ({ id: n.id })) });
-  await LocalNotifications.schedule({
-    notifications: list.map((n) => ({
-      id: n.id, title: n.title, body: n.body, extra: n.extra,
-      schedule: { at: n.at, allowWhileIdle: true },
-    })),
-  });
+  await LocalNotifications.schedule({ notifications: toPluginNotifications(list, await exactAlarmGranted()) });
+}
+
+export async function cancelNotifications() {
+  if (!isNative) return;
+  const { LocalNotifications } = await import("@capacitor/local-notifications");
+  await LocalNotifications.cancel({ notifications: NOTIFY_IDS.map((id) => ({ id })) });
 }
 
 export async function onNotificationTap(handler) {

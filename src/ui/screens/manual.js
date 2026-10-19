@@ -24,7 +24,13 @@ export function manualScreen(app, date, meal) {
           : !Number.isFinite(grams) ? "Los gramos tienen que ser un número."
           : [prot, hc, grasa].some((v) => v !== null && !Number.isFinite(v)) ? "Proteínas, hidratos y grasas tienen que ser números." : "";
         if (bad) { err.textContent = bad; err.hidden = false; return; }
-        await app.repo.addEntry({ date, meal, name: name.slice(0, 80), grams, kcal, prot, hc, grasa, source: "manual", detail: { origin: "manual" } });
+        try {
+          await app.repo.addEntry({ date, meal, name: name.slice(0, 80), grams, kcal, prot, hc, grasa, source: "manual", detail: { origin: "manual" } });
+        } catch {
+          err.textContent = "No se pudo guardar. Inténtalo otra vez.";
+          err.hidden = false;
+          return;
+        }
         await afterAdd(app, date, meal);
         app.stack.pop();
         await app.show();

@@ -9,9 +9,11 @@ export const longDate = (key) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
-export function dayScreen(app, date) {
+// date = null significa "hoy", calculado cada vez que se pinta (cambia sola a medianoche).
+export function dayScreen(app, fixedDate = null) {
   return {
     async render() {
+      const date = fixedDate ?? dateKey();
       const isToday = date === dateKey();
       const target = await app.targetFor(date);
       if (isToday) await app.repo.setDayTarget(date, target);

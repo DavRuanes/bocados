@@ -67,3 +67,12 @@ pasar la APK a amigos: cada uno tiene su propio perfil, sus preguntas y sus dato
   - Elemento propio: la barra del día dividida en las cuatro comidas, con el exceso en rojo.
   - Pregunta de la pantalla Hoy: "¿Cuántas calorías me quedan hoy?".
 - Tests con `node:test` sobre la lógica pura; un repositorio en memoria comparte interfaz con SQLite.
+
+## Cambios tras la revisión independiente (2026-10-19)
+
+- Notificaciones inexactas por defecto; la alarma exacta de las 00:00 se activa desde Perfil con
+  una explicación (Android 14+ la deniega por defecto y abría los ajustes al programar).
+- "Mantener": el límite no se sube al suelo (comer más de lo que se gasta haría engordar), pero si
+  el gasto estimado queda por debajo del suelo se muestra un aviso para consultar a un profesional.
+- Todos los platos se pueden editar (nombre, comida, gramos y, si no hay valores por 100 g, calorías).
+- Si USDA rechaza la clave o se agota DEMO_KEY, se deja de consultar y se avisa en el resultado.

@@ -39,13 +39,13 @@ export function photoScreen(app, date, meal) {
           }
           const key = await app.usdaKey();
           let n = 0;
-          const items = await resolvePlate(plate, (q) => {
+          const { items, problem } = await resolvePlate(plate, (q) => {
             n += 1;
             loading.setText(`Buscando calorías en USDA (${n} de ${plate.items.length})…`);
             return searchFood(q, key);
           });
           if (!app.stack.includes(this)) return;
-          body.replaceChildren(preview, resultPanel(app, date, meal, plate.dish, items));
+          body.replaceChildren(preview, resultPanel(app, date, meal, plate.dish, items, problem));
         } catch (e) {
           if (!app.stack.includes(this)) return;
           body.replaceChildren(preview, errorPanel(e.message, "Volver a intentarlo", () => app.replace(photoScreen(app, date, meal))));
@@ -60,7 +60,7 @@ export function photoScreen(app, date, meal) {
   };
 }
 
-function resultPanel(app, date, meal, dish, items) {
+function resultPanel(app, date, meal, dish, items, problem) {
   const state = items.map((it) => ({ it, grams: Math.round(it.grams), on: it.source !== "sin-datos" }));
   const totalEl = h("span", { class: "num" });
   const addBtn = h("button", { class: "btn primary block", type: "button" });
@@ -70,7 +70,7 @@ function resultPanel(app, date, meal, dish, items) {
     let total = 0;
     let count = 0;
     for (const s of state) {
-      if (!s.on) continue;
+      if (!s.on || s.grams <= 0) continue;
       total += scaleNutrients(s.it.per100, s.grams).kcal ?? 0;
       count += 1;
     }
@@ -89,7 +89,7 @@ function resultPanel(app, date, meal, dish, items) {
     const [cls, label] = SOURCE[s.it.source];
     const id = `g${i}`;
     return h("div", { class: "found-item" },
-      h("input", { type: "checkbox", checked: s.on, "aria-label": `Incluir ${s.it.name}`, onchange: (e) => { s.on = e.target.checked; recompute(); } }),
+      h("input", { type: "checkbox", checked: s.on, disabled: s.it.source === "sin-datos", "aria-label": `Incluir ${s.it.name}`, onchange: (e) => { s.on = e.target.checked; recompute(); } }),
       h("span", { class: "name" }, s.it.name),
       kcalEl,
       h("div", { class: "controls" },
@@ -103,7 +103,13 @@ function resultPanel(app, date, meal, dish, items) {
   addBtn.addEventListener("click", async () => {
     addBtn.disabled = true;
     const chosen = state.filter((s) => s.on);
-    for (const s of chosen) await app.repo.addEntry(entryFromItem(s.it, s.grams, { date, meal }));
+    try {
+      for (const s of chosen) await app.repo.addEntry(entryFromItem(s.it, s.grams, { date, meal }));
+    } catch {
+      toast("No se pudo guardar. Inténtalo otra vez.");
+      addBtn.disabled = false;
+      return;
+    }
     await afterAdd(app, date, meal, chosen.length);
     app.stack.pop();
     await app.show();
@@ -112,6 +118,7 @@ function resultPanel(app, date, meal, dish, items) {
 
   return h("section", { class: "panel" },
     h("h2", {}, dish),
+    problem ? h("p", { class: "notice" }, `${problem} Mientras tanto se usan los valores aproximados de la IA. Con tu propia clave de USDA (en Perfil) el límite es mucho mayor.`) : null,
     h("p", { class: "note" }, "Revisa los gramos: la IA los estima a ojo y es lo que más cambia el resultado."),
     rows,
     h("div", { class: "total-line" }, h("span", {}, "Total"), totalEl),

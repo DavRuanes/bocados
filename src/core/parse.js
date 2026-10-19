@@ -81,9 +81,7 @@ export function parseGroqJson(content) {
   const attempts = [content];
   const fence = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) attempts.push(fence[1]);
-  const first = content.indexOf("{");
-  const last = content.lastIndexOf("}");
-  if (first !== -1 && last > first) attempts.push(content.slice(first, last + 1));
+  attempts.push(...balancedObjects(content));
   for (const a of attempts) {
     try {
       const v = JSON.parse(a);
@@ -91,6 +89,25 @@ export function parseGroqJson(content) {
     } catch { /* probar el siguiente */ }
   }
   return null;
+}
+
+// Cada trozo {...} con llaves equilibradas (respetando las cadenas JSON), de mayor a menor.
+function balancedObjects(text) {
+  const out = [];
+  for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i++) {
+      const c = text[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === "\\") esc = true;
+        else if (c === '"') inStr = false;
+      } else if (c === '"') inStr = true;
+      else if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) { out.push(text.slice(start, i + 1)); break; }
+    }
+  }
+  return out.sort((a, b) => b.length - a.length);
 }
 
 export function normalizePlate(obj) {

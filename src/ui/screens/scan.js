@@ -137,12 +137,18 @@ export function productScreen(app, date, meal, product) {
       update();
 
       const add = async () => {
+        if (grams <= 0) { toast("Escribe cuántos gramos vas a comer."); return; }
         const s = scaleNutrients(product.per100, grams);
-        await app.repo.addEntry({
+        try {
+          await app.repo.addEntry({
           date, meal, name: product.brand ? `${product.name} (${product.brand})` : product.name, grams,
           kcal: s.kcal ?? 0, prot: s.prot, hc: s.hc, grasa: s.grasa, source: product.source,
-          detail: { per100: product.per100, code: product.code || null, origin: product.source },
-        });
+            detail: { per100: product.per100, code: product.code || null, origin: product.source },
+          });
+        } catch {
+          toast("No se pudo guardar. Inténtalo otra vez.");
+          return;
+        }
         await afterAdd(app, date, meal);
         app.stack.pop();
         await app.show();

@@ -21,3 +21,14 @@ test("month boundaries roll over correctly", () => {
   assert.deepEqual(list[0].extra, { date: "2026-10-31" });
   assert.deepEqual([list[0].at.getMonth(), list[0].at.getDate()], [10, 1]);
 });
+
+test("plugin payload is inexact unless exact alarms are allowed, and always allowed while idle", async () => {
+  const { toPluginNotifications } = await import("../src/core/notify.js");
+  const list = buildMidnightNotifications({ target: 1500, todayKcal: 300, now: new Date(2026, 9, 19, 10) });
+  const inexact = toPluginNotifications(list, false);
+  assert.equal(inexact.length, 7);
+  assert.deepEqual(Object.keys(inexact[0]).sort(), ["body", "extra", "id", "isExactNotification", "schedule", "title"]);
+  assert.equal(inexact[0].isExactNotification, false);
+  assert.deepEqual(inexact[0].schedule, { at: list[0].at, allowWhileIdle: true });
+  assert.equal(toPluginNotifications(list, true)[3].isExactNotification, true);
+});

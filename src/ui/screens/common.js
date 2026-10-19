@@ -61,7 +61,7 @@ export function gramsField(id, value, onChange, presets = [50, 100, 150, 200, 25
   const sync = () => {
     for (const c of chips.children) c.setAttribute("aria-pressed", String(Number(c.dataset.g) === Number(input.value)));
   };
-  input.addEventListener("input", () => { sync(); onChange(Number(input.value) || 0); });
+  input.addEventListener("input", () => { sync(); onChange(Math.max(0, Number(input.value) || 0)); });
   for (const p of presets) {
     chips.append(h("button", { class: "chip", type: "button", dataset: { g: p }, onclick: () => { input.value = String(p); sync(); onChange(p); } }, `${p} g`));
   }

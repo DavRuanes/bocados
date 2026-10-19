@@ -62,11 +62,14 @@ test("when expenditure is already below the floor the target is the floor and th
   assert.equal(r.clampedToFloor, true);
 });
 
-test("maintaining ignores pace and floor", () => {
+test("maintaining ignores pace and floor but flags an expenditure below the floor", () => {
   const r = dailyTarget({ sex: "mujer", weightKg: 40, heightCm: 145, age: 70, activity: "sedentario", goal: "mantener", pace: "rapido" });
   assert.equal(r.target, r.tdee);
   assert.equal(r.deficit, 0);
   assert.equal(r.clampedToFloor, false);
+  assert.equal(r.belowFloor, true);
+  const ok = dailyTarget({ sex: "hombre", weightKg: 80, heightCm: 180, age: 30, activity: "moderado", goal: "mantener" });
+  assert.equal(ok.belowFloor, false);
 });
 
 test("unknown goal or pace throws", () => {

@@ -16,13 +16,13 @@ async function boot() {
     root,
     repo,
     screens: {
-      hoy: (a) => dayScreen(a, dateKey()),
+      hoy: (a) => dayScreen(a, null),
       historial: (a) => historyScreen(a),
       perfil: (a) => profileScreen(a),
       day: (a, date) => dayScreen(a, date),
     },
   });
-  window.__bocado = app; // útil para depurar en Chrome (chrome://inspect)
+  if (repo.preview) window.__bocado = app; // solo en la vista previa del navegador
 
   let pendingDay = null;
   await onNotificationTap((date) => {
@@ -30,6 +30,7 @@ async function boot() {
     else pendingDay = date;
   });
   await onBackButton(() => {
+    if (app.onboardingBack) return app.onboardingBack();
     const handled = app.stack.length > 1 || app.tab !== "hoy";
     if (handled) app.back();
     return handled;

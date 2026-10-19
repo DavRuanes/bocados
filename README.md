@@ -9,7 +9,9 @@ App Android para controlar las calorías de cada día frente a un límite calcul
 
 ## Descargar la APK
 
-Cada vez que se sube un cambio a `main`, GitHub compila la APK y la publica en **Releases**. Desde el móvil, abre la última versión, descarga el `.apk` e instálalo. Android te pedirá permitir la instalación desde ese origen.
+Cada vez que se sube un cambio a `main`, GitHub compila la APK y la publica en **Releases** del repositorio. Desde el móvil (con tu sesión de GitHub abierta), abre la última versión, descarga el `.apk` e instálalo. Android te pedirá permitir la instalación desde ese origen.
+
+**Para tus amigos:** si el repositorio es privado, ellos no pueden ver Releases. Descarga tú el `.apk` y pásaselo (por WhatsApp, Drive, etc.).
 
 Las APK van firmadas siempre con la misma clave (`android/app/bocado-debug.keystore`), así que cada versión nueva se instala encima de la anterior sin perder datos. Mantén este repositorio privado: quien tenga esa clave puede firmar una APK que se instale encima de la tuya.
 

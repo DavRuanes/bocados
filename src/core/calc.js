@@ -45,7 +45,9 @@ export function dailyTarget(profile) {
   const floor = FLOORS[profile.sex];
 
   if (profile.goal === "mantener") {
-    return { bmr: b, tdee: total, deficit: 0, target: total, floor, clampedToFloor: false };
+    // Mantener no sube el límite (comer más de lo que gastas haría engordar),
+    // pero se avisa si el gasto estimado queda por debajo del mínimo recomendado.
+    return { bmr: b, tdee: total, deficit: 0, target: total, floor, clampedToFloor: false, belowFloor: total < floor };
   }
 
   const pace = PACES[profile.pace];
@@ -59,5 +61,6 @@ export function dailyTarget(profile) {
     target,
     floor,
     clampedToFloor: wanted < floor,
+    belowFloor: false,
   };
 }
