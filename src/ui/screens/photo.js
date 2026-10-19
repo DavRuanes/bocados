@@ -118,7 +118,7 @@ function resultPanel(app, date, meal, dish, items, problem) {
 
   return h("section", { class: "panel" },
     h("h2", {}, dish),
-    problem ? h("p", { class: "notice" }, "La base de datos de calorías ha llegado a su límite por ahora, así que se usan los valores aproximados de la IA. Revisa los números o prueba más tarde.") : null,
+    problem ? h("p", { class: "notice" }, "La base de datos de calorías no está disponible ahora mismo, así que se usan los valores aproximados de la IA. Revisa los números o prueba más tarde.") : null,
     h("p", { class: "note" }, "Revisa los gramos: la IA los estima a ojo y es lo que más cambia el resultado."),
     rows,
     h("div", { class: "total-line" }, h("span", {}, "Total"), totalEl),

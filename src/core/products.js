@@ -9,9 +9,11 @@ export function isStoreCode(code) {
 }
 
 // Clave para "Mis productos". En los códigos de tienda parte del número cambia con el peso o
-// el precio de cada bandeja, así que se usa solo el principio (7 cifras), que suele identificar
-// el artículo. Es una aproximación: la app pide confirmar que es el mismo producto.
+// el precio de cada bandeja, así que se usa solo el principio, que suele identificar el artículo:
+// 7 cifras en EAN-13 y 6 en UPC-A (donde la 7.ª suele ser un dígito de control del precio).
+// Es una aproximación: la app pide confirmar que es el mismo producto.
 export function productKey(code) {
   const c = String(code);
-  return isStoreCode(c) ? { key: `S:${c.slice(0, 7)}`, store: true } : { key: c, store: false };
+  if (!isStoreCode(c)) return { key: c, store: false };
+  return { key: `S:${c.slice(0, c.length === 12 ? 6 : 7)}`, store: true };
 }

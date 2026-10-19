@@ -17,7 +17,9 @@ export function guideScreen(app) {
       let sources;
 
       if (p.goal === "perder") {
-        intro = `Para adelgazar comes cada día menos de lo que gastas. Tu límite es ${formatInt(c.target)} kcal: ${formatInt(c.deficit)} kcal menos que tu gasto estimado de ${formatInt(c.tdee)} kcal.`;
+        intro = c.clampedToFloor
+          ? `Tu límite es ${formatInt(c.target)} kcal, el mínimo recomendado sin supervisión, porque restarle el déficit a tu gasto estimado de ${formatInt(c.tdee)} kcal te dejaría por debajo. Te conviene consultar con un profesional sanitario cómo adelgazar con seguridad.`
+          : `Para adelgazar comes cada día menos de lo que gastas. Tu límite es ${formatInt(c.target)} kcal: ${formatInt(c.deficit)} kcal menos que tu gasto estimado de ${formatInt(c.tdee)} kcal.`;
         steps.push(
           li(`Intenta no pasar de ${formatInt(c.target)} kcal al día. Si un día te pasas, al siguiente vuelve a tu límite.`),
           li(`Ritmo ${PACES[p.pace].label.toLowerCase()}: ${PACES[p.pace].hint}. Harvard Health considera seguro un déficit de 500 a 1.000 kcal al día.`),
@@ -31,7 +33,8 @@ export function guideScreen(app) {
           li("Pésate una vez por semana. Si subes o bajas de forma constante, actualiza tus datos o cambia de objetivo."));
         sources = "Fuentes: Mifflin-St Jeor (Frankenfield y cols., 2005), NHS.";
       } else if (p.goal === "musculo") {
-        intro = `Para ganar masa muscular comes un poco más de lo que gastas y mucha proteína, mientras entrenas fuerza. Tu límite es ${formatInt(c.target)} kcal: un ${Math.round(MUSCLE_SURPLUS * 100)} % más que tu gasto de ${formatInt(c.tdee)} kcal.`;
+        intro = `Para ganar masa muscular comes un poco más de lo que gastas y mucha proteína, mientras entrenas fuerza. Tu límite es ${formatInt(c.target)} kcal: un ${Math.round(MUSCLE_SURPLUS * 100)} % más que tu gasto de ${formatInt(c.tdee)} kcal.`
+          + (c.belowFloor ? ` Aun así queda por debajo de ${formatInt(c.floor)} kcal, el mínimo recomendado: consúltalo con un profesional sanitario.` : "");
         steps.push(
           li(`Proteína: unos ${formatInt(prot)} g al día (1,6 g por kilo). Un metaanálisis vio que por encima de 1,6 g/kg ya no se ganaba más músculo.`),
           li(`Repártela en 3 a 6 comidas, unos ${formatInt(perMeal)} g en cada una.`),
@@ -40,11 +43,13 @@ export function guideScreen(app) {
           li("Entrena fuerza de forma regular: la comida da los materiales, pero el entrenamiento es lo que hace crecer el músculo."));
         sources = "Fuentes: Iraki y cols. 2019 (superávit, ritmo y reparto), Morton y cols. 2018 (proteína), ISSN 2017.";
       } else {
-        intro = `Para ganar músculo y perder grasa a la vez comes algo menos de lo que gastas, mucha proteína y entrenas fuerza. Tu límite es ${formatInt(c.target)} kcal: ${formatInt(c.deficit)} kcal menos que tu gasto de ${formatInt(c.tdee)} kcal.`;
+        intro = c.clampedToFloor
+          ? `Tu límite es ${formatInt(c.target)} kcal, el mínimo recomendado sin supervisión, porque restar ${formatInt(RECOMP_DEFICIT)} kcal a tu gasto de ${formatInt(c.tdee)} kcal te dejaría por debajo. Te conviene consultarlo con un profesional sanitario.`
+          : `Para ganar músculo y perder grasa a la vez comes algo menos de lo que gastas, mucha proteína y entrenas fuerza. Tu límite es ${formatInt(c.target)} kcal: ${formatInt(c.deficit)} kcal menos que tu gasto de ${formatInt(c.tdee)} kcal.`;
         steps.push(
           li(`Proteína: unos ${formatInt(prot)} g al día (2,3 g por kilo). Con menos calorías hace falta más proteína para no perder músculo.`),
           li(`Repártela en 3 a 6 comidas, unos ${formatInt(perMeal)} g en cada una.`),
-          li(`Déficit suave de ${formatInt(RECOMP_DEFICIT)} kcal, el más bajo de los que Harvard Health considera seguros para perder peso.`),
+          c.clampedToFloor ? null : li(`Déficit suave de ${formatInt(RECOMP_DEFICIT)} kcal, el más bajo de los que Harvard Health considera seguros para perder peso.`),
           li("Entrena fuerza de forma regular: es lo que le dice al cuerpo que conserve y construya músculo mientras pierdes grasa."),
           li("El peso puede bajar despacio, porque ganas músculo mientras pierdes grasa. Fíjate también en cómo te queda la ropa o en tu cintura."));
         sources = "Fuentes: ISSN 2017 (2,3–3,1 g/kg en déficit), Iraki y cols. 2019, Harvard Health, revisión de recomposición corporal (Strength and Conditioning Journal, 2020).";

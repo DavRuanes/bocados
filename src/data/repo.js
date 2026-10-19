@@ -30,13 +30,14 @@ const SCHEMA = [
      target INTEGER NOT NULL
    )`,
   `CREATE TABLE IF NOT EXISTS my_products (
-     key TEXT PRIMARY KEY,
-     code TEXT NOT NULL,
+     code TEXT PRIMARY KEY,
+     key TEXT NOT NULL,
      name TEXT NOT NULL,
      brand TEXT,
      per100 TEXT NOT NULL,
      updated_at TEXT NOT NULL
    )`,
+  `CREATE INDEX IF NOT EXISTS my_products_key ON my_products(key)`,
   `CREATE TABLE IF NOT EXISTS settings (
      key TEXT PRIMARY KEY,
      value TEXT
@@ -56,6 +57,8 @@ const numOrNull = (v) => (v === null || v === undefined || !Number.isFinite(Numb
 
 export async function createRepo(db) {
   for (const s of SCHEMA) await db.exec(s);
+  // Las versiones 1.0.1 y 1.0.2 permitían poner claves propias; ya no se usan ni se guardan.
+  await db.run("DELETE FROM settings WHERE key IN ('groqKey', 'usdaKey')");
   const now = () => new Date().toISOString();
 
   return {
@@ -129,21 +132,29 @@ export async function createRepo(db) {
       const { key } = productKey(code);
       await db.run(
         `INSERT INTO my_products (key, code, name, brand, per100, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(key) DO UPDATE SET code = excluded.code, name = excluded.name, brand = excluded.brand,
+         ON CONFLICT(code) DO UPDATE SET key = excluded.key, name = excluded.name, brand = excluded.brand,
          per100 = excluded.per100, updated_at = excluded.updated_at`,
         [key, String(code), String(name).slice(0, 80), String(brand || "").slice(0, 60), JSON.stringify(per100), now()]
       );
     },
 
     // {product, match: "exact" | "store"} o null.
+    // Exacto por código; si es un código de tienda, el guardado más reciente con el mismo principio.
     async findMyProduct(code) {
-      const toProduct = (r) => ({ code: r.code, name: r.name, brand: r.brand || "", per100: JSON.parse(r.per100) });
+      const toProduct = (r) => {
+        try { return { code: r.code, name: r.name, brand: r.brand || "", per100: JSON.parse(r.per100) }; } catch { return null; }
+      };
       const exact = await db.all("SELECT code, name, brand, per100 FROM my_products WHERE code = ?", [String(code)]);
-      if (exact.length) return { product: toProduct(exact[0]), match: "exact" };
+      if (exact.length) { const p = toProduct(exact[0]); return p ? { product: p, match: "exact" } : null; }
       const { key, store } = productKey(code);
       if (!store) return null;
-      const near = await db.all("SELECT code, name, brand, per100 FROM my_products WHERE key = ?", [key]);
-      return near.length ? { product: toProduct(near[0]), match: "store" } : null;
+      const near = await db.all("SELECT code, name, brand, per100 FROM my_products WHERE key = ? ORDER BY updated_at DESC, rowid DESC LIMIT 1", [key]);
+      const p = near.length ? toProduct(near[0]) : null;
+      return p ? { product: p, match: "store" } : null;
+    },
+
+    async deleteMyProduct(code) {
+      await db.run("DELETE FROM my_products WHERE code = ?", [String(code)]);
     },
 
     async getSetting(key) {

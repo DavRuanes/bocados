@@ -112,3 +112,10 @@ test("protein per meal is about 0.4 g/kg", async () => {
   assert.equal(proteinPerMeal(80), 32);
   assert.equal(proteinPerMeal(72.5), 29);
 });
+
+test("the muscle goal warns when the target stays below the safety floor", () => {
+  const r = dailyTarget({ sex: "mujer", weightKg: 40, heightCm: 145, age: 70, activity: "sedentario", goal: "musculo" });
+  assert.ok(r.target < 1200);
+  assert.equal(r.belowFloor, true);
+  assert.equal(dailyTarget({ sex: "hombre", weightKg: 80, heightCm: 180, age: 30, activity: "moderado", goal: "musculo" }).belowFloor, false);
+});

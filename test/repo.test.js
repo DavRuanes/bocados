@@ -132,11 +132,44 @@ test("my products: exact codes match exactly, store codes match by their first 7
   assert.equal(await repo.findMyProduct("8410000000024"), null);
 });
 
-test("saving a product again with the same key replaces it", async () => {
-  const per100 = { kcal: 100 };
-  await repo.saveMyProduct({ code: "2215310002820", name: "Viejo", per100 });
-  await repo.saveMyProduct({ code: "2215310005555", name: "Nuevo", per100 });
-  assert.equal((await repo.findMyProduct("2215310002820")).product.name, "Nuevo");
+test("a different store code with the same prefix is kept, and the newest prefix match wins", async () => {
+  await repo.saveMyProduct({ code: "2215310002820", name: "Pechuga", per100: { kcal: 110 } });
+  await repo.saveMyProduct({ code: "2215310005555", name: "Muslos", per100: { kcal: 180 } });
+  assert.equal((await repo.findMyProduct("2215310002820")).product.name, "Pechuga");
+  assert.equal((await repo.findMyProduct("2215310005555")).product.name, "Muslos");
+  const near = await repo.findMyProduct("2215310009999");
+  assert.equal(near.match, "store");
+  assert.equal(near.product.name, "Muslos");
+});
+
+test("saving the same code again updates it, and deleteMyProduct forgets it", async () => {
+  await repo.saveMyProduct({ code: "8410000000017", name: "Pavo", per100: { kcal: 25 } });
+  await repo.saveMyProduct({ code: "8410000000017", name: "Pavo", per100: { kcal: 250 } });
+  assert.equal((await repo.findMyProduct("8410000000017")).product.per100.kcal, 250);
+  await repo.deleteMyProduct("8410000000017");
+  assert.equal(await repo.findMyProduct("8410000000017"), null);
+});
+
+test("old key settings from earlier versions are removed when the database opens", async () => {
+  const SQL = await initSqlJs();
+  const db = new SQL.Database();
+  const r1 = await createRepo(sqlJsExecutor(db));
+  await r1.setSetting("groqKey", "gsk_old");
+  await r1.setSetting("usdaKey", "old");
+  await r1.setSetting("otra", "x");
+  const r2 = await createRepo(sqlJsExecutor(db));
+  assert.equal(await r2.getSetting("groqKey"), null);
+  assert.equal(await r2.getSetting("usdaKey"), null);
+  assert.equal(await r2.getSetting("otra"), "x");
+});
+
+test("a damaged saved product is treated as missing", async () => {
+  const SQL = await initSqlJs();
+  const db = new SQL.Database();
+  const r = await createRepo(sqlJsExecutor(db));
+  await r.saveMyProduct({ code: "8410000000017", name: "Pavo", per100: { kcal: 1 } });
+  db.run("UPDATE my_products SET per100 = '{roto'");
+  assert.equal(await r.findMyProduct("8410000000017"), null);
 });
 
 test("reset also deletes my products", async () => {

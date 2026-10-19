@@ -91,7 +91,7 @@ export function itemScreen(app, entry) {
           err,
           h("button", { class: "btn primary block", type: "button", onclick: save }, "Guardar cambios")),
         scalable ? h("section", { class: "panel" }, h("h2", {}, "Información nutricional"), tableWrap) : null,
-        entry.detail?.originName ? h("p", { class: "meta" }, `Valores de USDA FoodData Central: ${entry.detail.originName}.`) : null,
+        entry.detail?.originName ? h("p", { class: "meta" }, `Valores de la base de datos de alimentos: ${entry.detail.originName}.`) : null,
         h("button", { class: "btn danger block", type: "button", onclick: () => { confirmBox.hidden = false; confirmBox.scrollIntoView({ block: "center" }); } }, "Borrar este plato"),
         confirmBox);
     },

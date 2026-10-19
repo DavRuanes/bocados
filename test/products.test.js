@@ -17,3 +17,8 @@ test("productKey uses the whole code, or the first 7 digits for store codes", ()
   assert.deepEqual(productKey("2215310002820"), { key: "S:2215310", store: true });
   assert.deepEqual(productKey("2215310009999"), { key: "S:2215310", store: true });
 });
+
+test("12-digit store codes use the first 6 digits (the 7th is often a price check digit)", () => {
+  assert.deepEqual(productKey("212345678905"), { key: "S:212345", store: true });
+  assert.deepEqual(productKey("212345978906"), { key: "S:212345", store: true });
+});

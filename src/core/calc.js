@@ -70,7 +70,7 @@ export function dailyTarget(profile) {
 
   if (profile.goal === "musculo") {
     const target = Math.round(total * (1 + MUSCLE_SURPLUS));
-    return { bmr: b, tdee: total, deficit: 0, surplus: target - total, target, floor, clampedToFloor: false, belowFloor: false };
+    return { bmr: b, tdee: total, deficit: 0, surplus: target - total, target, floor, clampedToFloor: false, belowFloor: target < floor };
   }
 
   let deficitWanted;
