@@ -11,15 +11,17 @@ App Android para controlar las calorías de cada día frente a un límite calcul
 
 Cada vez que se sube un cambio a `main`, GitHub compila la APK y la publica en **Releases** del repositorio. Desde el móvil (con tu sesión de GitHub abierta), abre la última versión, descarga el `.apk` e instálalo. Android te pedirá permitir la instalación desde ese origen.
 
-**Para tus amigos:** si el repositorio es privado, ellos no pueden ver Releases. Descarga tú el `.apk` y pásaselo (por WhatsApp, Drive, etc.).
+**Para tus amigos:** el repositorio es público, así que pueden descargar la APK desde Releases o puedes pasarles tú el archivo.
 
-Las APK van firmadas siempre con la misma clave (`android/app/bocado-debug.keystore`), así que cada versión nueva se instala encima de la anterior sin perder datos. Mantén este repositorio privado: quien tenga esa clave puede firmar una APK que se instale encima de la tuya.
+Las APK van firmadas siempre con la misma clave (`android/app/bocado-debug.keystore`), así que cada versión nueva se instala encima de la anterior sin perder datos.
+
+**Riesgo aceptado por el propietario:** al ser público, esa clave de firma está a la vista y cualquiera podría firmar una APK que se instale encima. Instala Bocado solo desde los Releases de este repositorio.
 
 ## Clave de Groq
 
 El análisis de fotos usa Groq. La clave se mete en la APK al compilar desde el secreto `GROQ_API_KEY` del repositorio (Settings → Secrets and variables → Actions → New repository secret). No está en el código.
 
-Riesgos de incluirla: cualquiera con la APK podría extraerla, y todos los que la usen comparten su límite diario. Si pasa algo, bórrala en console.groq.com, crea otra, actualiza el secreto y vuelve a compilar.
+Riesgos de incluirla (aceptados por el propietario): las APK de Releases son públicas, así que cualquiera podría descargarlas y extraer la clave, y todos los que la usen comparten su límite diario. Si pasa algo, bórrala en console.groq.com, crea otra, actualiza el secreto y vuelve a compilar.
 
 USDA usa por defecto `DEMO_KEY` (30 consultas por hora y 50 al día). Cada persona puede poner su propia clave gratuita en Perfil.
 

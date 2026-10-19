@@ -3,7 +3,7 @@ import { parseOffProduct } from "../core/parse.js";
 
 const FIELDS = "code,product_name,product_name_es,brands,nutriments";
 // Open Food Facts pide un User-Agent que identifique la app.
-const USER_AGENT = "Bocado/1.0 (app personal Android)";
+const USER_AGENT = "Bocado/1.0 (https://github.com/DavRuanes/bocados)";
 
 export function cleanBarcode(raw) {
   const digits = String(raw ?? "").replace(/[\s-]/g, "");
