@@ -88,6 +88,24 @@ test("settings round-trip and missing ones are null", async () => {
   assert.equal(await repo.getSetting("usdaKey"), "");
 });
 
+test("getDayTarget returns the stored target or null", async () => {
+  assert.equal(await repo.getDayTarget("2026-10-19"), null);
+  await repo.setDayTarget("2026-10-19", 1550.4);
+  assert.equal(await repo.getDayTarget("2026-10-19"), 1550);
+});
+
+test("reset deletes every profile, entry, target and setting", async () => {
+  await repo.saveProfile(profile);
+  await repo.addEntry(entry());
+  await repo.setDayTarget("2026-10-19", 1500);
+  await repo.setSetting("usdaKey", "x");
+  await repo.reset();
+  assert.equal(await repo.getProfile(), null);
+  assert.deepEqual(await repo.entriesForDate("2026-10-19"), []);
+  assert.equal(await repo.getDayTarget("2026-10-19"), null);
+  assert.equal(await repo.getSetting("usdaKey"), null);
+});
+
 test("createRepo is idempotent on an existing database", async () => {
   const SQL = await initSqlJs();
   const db = new SQL.Database();

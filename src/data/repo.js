@@ -94,6 +94,15 @@ export async function createRepo(db) {
       );
     },
 
+    async getDayTarget(date) {
+      const rows = await db.all("SELECT target FROM day_targets WHERE date = ?", [date]);
+      return rows.length ? rows[0].target : null;
+    },
+
+    async reset() {
+      for (const t of ["entries", "day_targets", "settings", "profile"]) await db.run(`DELETE FROM ${t}`);
+    },
+
     async daySummaries(limit = 60) {
       const profile = await this.getProfile();
       const fallback = profile?.target ?? null;
