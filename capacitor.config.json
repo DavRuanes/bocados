@@ -1,0 +1,20 @@
+{
+  "appId": "app.bocado.calorias",
+  "appName": "Bocado",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "CapacitorSQLite": {
+      "androidIsEncryption": false
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_bocado",
+      "iconColor": "#1d5fd6"
+    }
+  }
+}
