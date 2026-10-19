@@ -6,6 +6,8 @@ import { getProduct, cleanBarcode } from "../../api/off.js";
 import { readLabel } from "../../api/groq.js";
 import { afterAdd, nutritionTable, gramsField, errorPanel, loadingPanel, toMeal } from "./common.js";
 import { manualScreen } from "./manual.js";
+import { isStoreCode } from "../../core/products.js";
+import { parseNumber } from "../../core/profile.js";
 
 // Abre el escáner nativo y, al leer un código, busca el producto.
 export async function scanFlow(app, date, meal) {
@@ -52,14 +54,27 @@ function lookupScreen(app, date, meal, code) {
       const main = h("main", { class: "screen" },
         h("div", { class: "top" }, backButton(app)),
         h("header", {}, h("h1", {}, "Buscando producto"), h("p", { class: "lede num" }, `Código ${code}`)),
-        loadingPanel("Consultando Open Food Facts…"));
+        loadingPanel("Buscando el producto…"));
       queueMicrotask(async () => {
         try {
+          // 1) Productos que el usuario ya completó antes ("Mis productos").
+          const mine = await app.repo.findMyProduct(code);
+          if (!app.stack.includes(this)) return;
+          if (mine) {
+            await app.replace(productScreen(app, date, meal, { ...mine.product, code, source: "mio", match: mine.match }));
+            return;
+          }
+          // 2) Códigos de tienda: ninguna base de datos pública los tiene.
+          if (isStoreCode(code)) {
+            await app.replace(missingScreen(app, date, meal, code, true));
+            return;
+          }
+          // 3) Open Food Facts.
           const p = await getProduct(code);
           if (!app.stack.includes(this)) return;
           await app.replace(p.found
             ? productScreen(app, date, meal, { name: p.name, brand: p.brand, code: p.code, per100: p.per100, source: "barcode" })
-            : notFoundScreen(app, date, meal, code));
+            : missingScreen(app, date, meal, code, false));
         } catch (e) {
           if (!app.stack.includes(this)) return;
           main.lastChild.replaceWith(errorPanel(e.message, "Volver a intentarlo", () => app.replace(lookupScreen(app, date, meal, code))));
@@ -70,16 +85,60 @@ function lookupScreen(app, date, meal, code) {
   };
 }
 
-function notFoundScreen(app, date, meal, code) {
+// Producto sin datos: código de tienda o que no está en Open Food Facts.
+function missingScreen(app, date, meal, code, store) {
   return {
     render() {
       return h("main", { class: "screen" },
         h("div", { class: "top" }, backButton(app)),
-        h("header", {}, h("h1", {}, "Producto no encontrado"),
-          h("p", { class: "lede num" }, `Open Food Facts no tiene el código ${code}. Puedes leer la etiqueta con una foto o escribir los valores.`)),
+        h("header", {},
+          h("h1", {}, store ? "Código de la tienda" : "Producto no encontrado"),
+          h("p", { class: "lede num" }, store
+            ? `El código ${code} lo pone el supermercado (por ejemplo en carne, pescado o fruta pesada) y no está en ninguna base de datos.`
+            : `La base de datos de productos no tiene el código ${code}.`)),
+        h("p", { class: "note" }, "Complétalo una vez con la etiqueta o con los valores por 100 g y Bocado lo recordará la próxima vez que lo escanees."),
         h("div", { class: "actions" },
           h("button", { class: "btn primary big block", type: "button", onclick: () => app.replace(labelScreen(app, date, meal, code)) }, icon("label"), "Fotografiar la etiqueta"),
-          h("button", { class: "btn big block", type: "button", onclick: () => app.replace(manualScreen(app, date, meal)) }, icon("pencil"), "Añadir a mano")));
+          h("button", { class: "btn big block", type: "button", onclick: () => app.replace(productFormScreen(app, date, meal, code)) }, icon("pencil"), "Escribir valores por 100 g"),
+          h("button", { class: "btn text", type: "button", onclick: () => app.replace(manualScreen(app, date, meal)) }, "Solo sé las calorías totales")));
+    },
+  };
+}
+
+// Valores por 100 g escritos por el usuario; se guardan en "Mis productos".
+export function productFormScreen(app, date, meal, code = "") {
+  const FIELDS = [["kcal", "Calorías", "kcal", true], ["prot", "Proteínas", "g"], ["hc", "Hidratos", "g"], ["azuc", "Azúcares", "g"], ["grasa", "Grasas", "g"], ["sal", "Sal", "g"]];
+  return {
+    render() {
+      const err = h("p", { class: "error", hidden: true, role: "alert" });
+      const field = (id, label, unit, attrs = {}) => h("div", { class: "field" },
+        h("label", { for: id }, label),
+        h("div", { class: "input with-unit" }, h("input", { id, type: "text", inputmode: "decimal", autocomplete: "off", ...attrs }), unit ? h("span", {}, unit) : null));
+      const submit = (ev) => {
+        ev.preventDefault();
+        const f = ev.target;
+        const name = f.elements.pname.value.trim();
+        const per100 = { kcal: null, grasa: null, sat: null, hc: null, azuc: null, fibra: null, prot: null, sal: null };
+        for (const [k, , , required] of FIELDS) {
+          const raw = f.elements[`p${k}`].value.trim();
+          if (!raw) { if (required) return show("Escribe las calorías por 100 g (están en la tabla del envase)."); continue; }
+          const n = parseNumber(raw);
+          if (!Number.isFinite(n) || (k === "kcal" ? n > 900 : n > 100)) return show("Revisa los números: son valores por 100 g.");
+          per100[k] = n;
+        }
+        if (!name) return show("Ponle un nombre al producto.");
+        app.replace(productScreen(app, date, meal, { name: name.slice(0, 80), brand: "", code, per100, source: "manual-producto" }));
+      };
+      const show = (m) => { err.textContent = m; err.hidden = false; };
+      return h("main", { class: "screen" },
+        h("div", { class: "top" }, backButton(app)),
+        h("header", {}, h("h1", {}, "Valores por 100 g"), h("p", { class: "lede" }, "Cópialos de la tabla de información nutricional del envase.")),
+        h("form", { class: "panel", onsubmit: submit, novalidate: true },
+          field("pname", "Nombre", "", { inputmode: "text", maxlength: "80", placeholder: "Pechuga de pollo en filetes" }),
+          h("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" } },
+            FIELDS.map(([k, label, unit]) => field(`p${k}`, label, unit))),
+          err,
+          h("button", { class: "btn primary block", type: "submit" }, "Continuar")));
     },
   };
 }
@@ -139,12 +198,17 @@ export function productScreen(app, date, meal, product) {
       const add = async () => {
         if (grams <= 0) { toast("Escribe cuántos gramos vas a comer."); return; }
         const s = scaleNutrients(product.per100, grams);
+        const entrySource = product.source === "etiqueta" ? "etiqueta" : product.source === "manual-producto" ? "manual" : "barcode";
         try {
           await app.repo.addEntry({
-          date, meal, name: product.brand ? `${product.name} (${product.brand})` : product.name, grams,
-          kcal: s.kcal ?? 0, prot: s.prot, hc: s.hc, grasa: s.grasa, source: product.source,
+            date, meal, name: product.brand ? `${product.name} (${product.brand})` : product.name, grams,
+            kcal: s.kcal ?? 0, prot: s.prot, hc: s.hc, grasa: s.grasa, source: entrySource,
             detail: { per100: product.per100, code: product.code || null, origin: product.source },
           });
+          // Lo que el usuario completa a mano o con la etiqueta se recuerda para el próximo escaneo.
+          if (product.code && (product.source === "etiqueta" || product.source === "manual-producto")) {
+            await app.repo.saveMyProduct({ code: product.code, name: product.name, brand: product.brand, per100: product.per100 });
+          }
         } catch {
           toast("No se pudo guardar. Inténtalo otra vez.");
           return;
@@ -154,11 +218,17 @@ export function productScreen(app, date, meal, product) {
         await app.show();
       };
 
-      const meta = [product.brand, product.code ? `Código ${product.code}` : "", product.source === "etiqueta" ? "Leído de la etiqueta" : "Datos de Open Food Facts"].filter(Boolean).join(". ");
+      const ORIGIN = { etiqueta: "Leído de la etiqueta", "manual-producto": "Valores escritos por ti", mio: "Guardado en Mis productos", barcode: "Datos de Open Food Facts" };
+      const meta = [product.brand, product.code ? `Código ${product.code}` : "", ORIGIN[product.source]].filter(Boolean).join(". ");
       return h("main", { class: "screen" },
         h("div", { class: "top" }, backButton(app)),
         h("header", {}, h("h1", {}, product.name), h("p", { class: "lede" }, meta)),
         !hasKcal ? h("p", { class: "notice" }, "Este producto no tiene calorías registradas. Puedes leer la etiqueta o añadirlo a mano.") : null,
+        product.match === "store"
+          ? h("section", { class: "notice", style: { display: "flex", flexDirection: "column", gap: "8px" } },
+              h("span", {}, `Este código de tienda se parece al de «${product.name}», que guardaste antes. Comprueba que es el mismo producto.`),
+              h("button", { class: "btn", type: "button", style: { alignSelf: "flex-start" }, onclick: () => app.replace(missingScreen(app, date, meal, product.code, true)) }, "No es este producto"))
+          : null,
         h("section", { class: "panel" },
           gramsField("grams", grams, (g) => { grams = g; update(); }),
           h("div", { class: "today-figure" }, figure, h("p", { class: "muted" }, "en la cantidad elegida")),

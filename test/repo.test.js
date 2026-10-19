@@ -114,3 +114,33 @@ test("createRepo is idempotent on an existing database", async () => {
   const r2 = await createRepo(sqlJsExecutor(db));
   assert.deepEqual(await r2.getProfile(), profile);
 });
+
+test("my products: exact codes match exactly, store codes match by their first 7 digits", async () => {
+  const per100 = { kcal: 120, grasa: 2, sat: null, hc: 0, azuc: 0, fibra: null, prot: 24, sal: 0.2 };
+  await repo.saveMyProduct({ code: "8410000000017", name: "Pavo", brand: "", per100 });
+  await repo.saveMyProduct({ code: "2215310002820", name: "Pechuga bandeja", brand: "Súper", per100 });
+  const a = await repo.findMyProduct("8410000000017");
+  assert.equal(a.match, "exact");
+  assert.equal(a.product.name, "Pavo");
+  assert.deepEqual(a.product.per100, per100);
+  const b = await repo.findMyProduct("2215310009999");
+  assert.equal(b.match, "store");
+  assert.equal(b.product.name, "Pechuga bandeja");
+  assert.equal(b.product.code, "2215310002820");
+  const c = await repo.findMyProduct("2215310002820");
+  assert.equal(c.match, "exact");
+  assert.equal(await repo.findMyProduct("8410000000024"), null);
+});
+
+test("saving a product again with the same key replaces it", async () => {
+  const per100 = { kcal: 100 };
+  await repo.saveMyProduct({ code: "2215310002820", name: "Viejo", per100 });
+  await repo.saveMyProduct({ code: "2215310005555", name: "Nuevo", per100 });
+  assert.equal((await repo.findMyProduct("2215310002820")).product.name, "Nuevo");
+});
+
+test("reset also deletes my products", async () => {
+  await repo.saveMyProduct({ code: "8410000000017", name: "Pavo", per100: { kcal: 1 } });
+  await repo.reset();
+  assert.equal(await repo.findMyProduct("8410000000017"), null);
+});

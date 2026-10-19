@@ -25,13 +25,14 @@ export function createApp({ root, repo, screens }) {
       return app.profile;
     },
 
+    // Todos usan la clave compartida incluida al compilar; nadie tiene que poner ninguna.
     async groqKey() {
-      const own = (await repo.getSetting("groqKey")) || "";
-      return own.trim() || BUILT_IN_GROQ_KEY;
+      return BUILT_IN_GROQ_KEY;
     },
 
+    // Base de datos de calorías: clave de prueba pública (DEMO_KEY).
     async usdaKey() {
-      return ((await repo.getSetting("usdaKey")) || "").trim();
+      return "";
     },
 
     async targetFor(date) {

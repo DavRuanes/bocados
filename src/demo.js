@@ -36,6 +36,22 @@ export async function seedDemo(repo) {
 
 export async function openDemo(app, hash, root) {
   const today = dateKey();
+  if (hash === "demo-musculo") {
+    const p = { ...PROFILE, goal: "musculo", pace: null, weightKg: 72 };
+    const calc = dailyTarget(p);
+    await app.repo.saveProfile({ ...p, target: calc.target, calc, since: today });
+    await app.loadProfile();
+    return app.setTab("hoy");
+  }
+  if (hash === "demo-guia") {
+    const p = { ...PROFILE, goal: "recomp", pace: null };
+    const calc = dailyTarget(p);
+    await app.repo.saveProfile({ ...p, target: calc.target, calc, since: today });
+    await app.loadProfile();
+    await app.setTab("perfil");
+    const { guideScreen } = await import("./ui/screens/guide.js");
+    return app.push(guideScreen(app));
+  }
   if (hash === "demo-historial") return app.setTab("historial");
   if (hash === "demo-perfil") return app.setTab("perfil");
   if (hash === "demo-comida") { await app.setTab("hoy"); return app.push(mealScreen(app, today, "comida")); }

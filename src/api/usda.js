@@ -15,6 +15,6 @@ export function usdaSearchUrl(query, key) {
 
 // Devuelve {fdcId, description, per100} o null si USDA no tiene el alimento.
 export async function searchFood(query, key) {
-  const json = await fetchJson(usdaSearchUrl(query, key), {}, "USDA");
+  const json = await fetchJson(usdaSearchUrl(query, key), {}, "la base de datos de calorías");
   return parseUsdaSearch(json);
 }

@@ -20,7 +20,7 @@ export async function getProduct(raw) {
   const code = cleanBarcode(raw);
   if (!code) throw new ApiError("bad", "Ese código de barras no es válido.");
   try {
-    const json = await fetchJson(offProductUrl(code), { headers: { "User-Agent": USER_AGENT } }, "Open Food Facts");
+    const json = await fetchJson(offProductUrl(code), { headers: { "User-Agent": USER_AGENT } }, "la base de datos de productos");
     return { ...parseOffProduct(json), code };
   } catch (e) {
     if (e.kind === "notfound") return { found: false, code };

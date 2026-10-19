@@ -31,7 +31,7 @@ Responde SOLO con un objeto JSON:
 {"legible": true, "nombre": "...", "marca": "...", "kcal": 0, "grasa": 0, "sat": 0, "hc": 0, "azuc": 0, "fibra": 0, "prot": 0, "sal": 0}`;
 
 export function groqRequest(key, prompt, imageDataUrls) {
-  if (!key || !key.trim()) throw new ApiError("auth", "Falta la clave de Groq. Añádela en Ajustes para analizar fotos.");
+  if (!key || !key.trim()) throw new ApiError("auth", "El análisis de fotos no está disponible en esta versión. Añade el plato a mano o lee la etiqueta más tarde.");
   if (imageDataUrls.length > MAX_IMAGES) throw new ApiError("bad", "Se pueden enviar como máximo 3 fotos a la vez.");
   return {
     url: GROQ_URL,
@@ -53,7 +53,7 @@ export function groqRequest(key, prompt, imageDataUrls) {
 
 async function ask(key, prompt, images) {
   const req = groqRequest(key, prompt, images);
-  const json = await fetchJson(req.url, { method: "POST", headers: req.headers, body: JSON.stringify(req.body) }, "Groq");
+  const json = await fetchJson(req.url, { method: "POST", headers: req.headers, body: JSON.stringify(req.body) }, "el análisis de fotos");
   const content = json?.choices?.[0]?.message?.content;
   const parsed = parseGroqJson(content);
   if (!parsed) throw new ApiError("bad", "La IA ha respondido en un formato inesperado. Vuelve a intentarlo.");

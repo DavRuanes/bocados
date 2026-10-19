@@ -76,3 +76,20 @@ pasar la APK a amigos: cada uno tiene su propio perfil, sus preguntas y sus dato
   el gasto estimado queda por debajo del suelo se muestra un aviso para consultar a un profesional.
 - Todos los platos se pueden editar (nombre, comida, gramos y, si no hay valores por 100 g, calorías).
 - Si USDA rechaza la clave o se agota DEMO_KEY, se deja de consultar y se avisa en el resultado.
+
+## Versión 1.0.3 (aprobada por el usuario el 2026-10-19)
+
+- Objetivos nuevos, para personas que hacen ejercicio de fuerza:
+  - "Ganar masa muscular": límite = gasto × 1,10 (extremo bajo del 10–20 % de Iraki et al. 2019);
+    proteína 1,6 g/kg (meseta de Morton et al. 2018; ISSN 1,4–2,0 g/kg).
+  - "Ganar músculo y perder grasa": gasto − 500 kcal con el suelo de seguridad; proteína 2,3 g/kg
+    (mínimo del rango 2,3–3,1 g/kg de la ISSN en déficit).
+  - Proteína por comida ≈ 0,4 g/kg (Iraki 2019: 0,40–0,55 g/kg).
+- Pantalla Hoy: barra de proteína para los objetivos de músculo. Pantalla "Qué tienes que hacer".
+- La app no muestra claves ni nombres de servicios de IA. Todos usan la clave compartida incluida al
+  compilar; USDA usa DEMO_KEY. Si falla, mensaje neutro y alternativa de añadir a mano.
+- Códigos de circulación restringida (prefijos 02 y 20–29, GS1): aviso específico y foto de la etiqueta.
+- "Mis productos": productos sin datos en Open Food Facts que el usuario completa (etiqueta o valores
+  por 100 g) se guardan con su código. Para códigos de tienda se compara la parte inicial (7 cifras) y
+  se pide confirmar que es el mismo producto.
+- Número de versión visible en Perfil.

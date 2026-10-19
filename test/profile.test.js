@@ -54,3 +54,11 @@ test("pace is only required when the goal is to lose weight", () => {
   assert.equal(r.profile.pace, null);
   assert.equal(validateProfile({ ...good, pace: "" }).ok, false);
 });
+
+test("muscle goals do not need a pace", () => {
+  for (const goal of ["musculo", "recomp"]) {
+    const r = validateProfile({ ...good, goal, pace: "" });
+    assert.equal(r.ok, true, goal);
+    assert.equal(r.profile.pace, null);
+  }
+});

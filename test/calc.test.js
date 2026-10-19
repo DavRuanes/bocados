@@ -74,6 +74,41 @@ test("maintaining ignores pace and floor but flags an expenditure below the floo
 
 test("unknown goal or pace throws", () => {
   const base = { sex: "hombre", weightKg: 80, heightCm: 180, age: 30, activity: "moderado" };
-  assert.throws(() => dailyTarget({ ...base, goal: "ganar", pace: "medio" }), /objetivo/);
+  assert.throws(() => dailyTarget({ ...base, goal: "engordar", pace: "medio" }), /objetivo/);
   assert.throws(() => dailyTarget({ ...base, goal: "perder", pace: "turbo" }), /ritmo/);
+});
+
+test("gaining muscle adds 10 % to expenditure and sets 1.6 g/kg of protein", async () => {
+  const { proteinTarget } = await import("../src/core/calc.js");
+  const p = { sex: "hombre", weightKg: 80, heightCm: 180, age: 30, activity: "moderado", goal: "musculo" };
+  const r = dailyTarget(p);
+  assert.equal(r.tdee, 2759);
+  assert.equal(r.target, 3035); // round(2759 * 1.10)
+  assert.equal(r.surplus, 276);
+  assert.equal(r.deficit, 0);
+  assert.equal(proteinTarget(p), 128); // 80 * 1.6
+});
+
+test("recomposition subtracts 500 kcal, respects the floor and sets 2.3 g/kg of protein", async () => {
+  const { proteinTarget } = await import("../src/core/calc.js");
+  const p = { sex: "hombre", weightKg: 80, heightCm: 180, age: 30, activity: "moderado", goal: "recomp" };
+  const r = dailyTarget(p);
+  assert.equal(r.target, 2259);
+  assert.equal(r.deficit, 500);
+  assert.equal(proteinTarget(p), 184); // 80 * 2.3
+  const small = dailyTarget({ sex: "mujer", weightKg: 50, heightCm: 155, age: 40, activity: "sedentario", goal: "recomp" });
+  assert.equal(small.target, 1200);
+  assert.equal(small.clampedToFloor, true);
+});
+
+test("losing weight and maintaining have no protein target", async () => {
+  const { proteinTarget } = await import("../src/core/calc.js");
+  assert.equal(proteinTarget({ goal: "perder", weightKg: 80 }), null);
+  assert.equal(proteinTarget({ goal: "mantener", weightKg: 80 }), null);
+});
+
+test("protein per meal is about 0.4 g/kg", async () => {
+  const { proteinPerMeal } = await import("../src/core/calc.js");
+  assert.equal(proteinPerMeal(80), 32);
+  assert.equal(proteinPerMeal(72.5), 29);
 });

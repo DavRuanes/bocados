@@ -20,7 +20,10 @@ await build({
   loader: { ".woff2": "file", ".woff": "file", ".wasm": "file" },
   assetNames: "assets/[name]-[hash]",
   chunkNames: "chunks/[name]-[hash]",
-  define: { __GROQ_KEY__: JSON.stringify(process.env.GROQ_API_KEY || "") },
+  define: {
+    __GROQ_KEY__: JSON.stringify(process.env.GROQ_API_KEY || ""),
+    __APP_VERSION__: JSON.stringify(`1.0.${process.env.BOCADO_VERSION_CODE || "0"}`),
+  },
   external: ["fs", "path", "crypto"],
   logLevel: "warning",
 });

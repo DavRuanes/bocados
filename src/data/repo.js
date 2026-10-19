@@ -1,3 +1,5 @@
+import { productKey } from "../core/products.js";
+
 // Base de datos de Bocado. Un único conjunto de SQL que funciona igual con
 // SQLite nativo (Android) y con sql.js (tests y vista previa en el navegador).
 // Un "executor" expone: exec(sql), run(sql, params) -> {lastId}, all(sql, params) -> rows.
@@ -26,6 +28,14 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS day_targets (
      date TEXT PRIMARY KEY,
      target INTEGER NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS my_products (
+     key TEXT PRIMARY KEY,
+     code TEXT NOT NULL,
+     name TEXT NOT NULL,
+     brand TEXT,
+     per100 TEXT NOT NULL,
+     updated_at TEXT NOT NULL
    )`,
   `CREATE TABLE IF NOT EXISTS settings (
      key TEXT PRIMARY KEY,
@@ -100,7 +110,7 @@ export async function createRepo(db) {
     },
 
     async reset() {
-      for (const t of ["entries", "day_targets", "settings", "profile"]) await db.run(`DELETE FROM ${t}`);
+      for (const t of ["entries", "day_targets", "settings", "profile", "my_products"]) await db.run(`DELETE FROM ${t}`);
     },
 
     async daySummaries(limit = 60) {
@@ -113,6 +123,27 @@ export async function createRepo(db) {
         [limit]
       );
       return rows.map((r) => ({ date: r.date, kcal: Math.round(r.kcal), count: r.count, target: r.target ?? fallback }));
+    },
+
+    async saveMyProduct({ code, name, brand = "", per100 }) {
+      const { key } = productKey(code);
+      await db.run(
+        `INSERT INTO my_products (key, code, name, brand, per100, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET code = excluded.code, name = excluded.name, brand = excluded.brand,
+         per100 = excluded.per100, updated_at = excluded.updated_at`,
+        [key, String(code), String(name).slice(0, 80), String(brand || "").slice(0, 60), JSON.stringify(per100), now()]
+      );
+    },
+
+    // {product, match: "exact" | "store"} o null.
+    async findMyProduct(code) {
+      const toProduct = (r) => ({ code: r.code, name: r.name, brand: r.brand || "", per100: JSON.parse(r.per100) });
+      const exact = await db.all("SELECT code, name, brand, per100 FROM my_products WHERE code = ?", [String(code)]);
+      if (exact.length) return { product: toProduct(exact[0]), match: "exact" };
+      const { key, store } = productKey(code);
+      if (!store) return null;
+      const near = await db.all("SELECT code, name, brand, per100 FROM my_products WHERE key = ?", [key]);
+      return near.length ? { product: toProduct(near[0]), match: "store" } : null;
     },
 
     async getSetting(key) {

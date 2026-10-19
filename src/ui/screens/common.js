@@ -11,7 +11,7 @@ export function sourcePill(entry) {
   if (entry.source === "barcode") return h("span", { class: "pill" }, "Código de barras");
   if (entry.source === "etiqueta") return h("span", { class: "pill" }, "Etiqueta");
   if (entry.source === "manual") return h("span", { class: "pill" }, "A mano");
-  if (origin === "usda") return h("span", { class: "pill positive" }, "USDA");
+  if (origin === "usda") return h("span", { class: "pill positive" }, "Base de datos");
   if (origin === "estimado") return h("span", { class: "pill warning" }, "Estimado");
   if (origin === "sin-datos") return h("span", { class: "pill negative" }, "Sin datos");
   return null;

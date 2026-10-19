@@ -3,6 +3,8 @@
 //  - Mifflin-St Jeor: Frankenfield et al. 2005, J Am Diet Assoc 105(5):775-789.
 //  - Factores de actividad 1.2-1.9 (QxMD, calculadora Mifflin-St Jeor).
 //  - Déficit 500-1.000 kcal/día y suelos de 1.200 / 1.500 kcal: Harvard Health.
+//  - Ganar músculo: superávit 10-20 % (Iraki et al. 2019); se usa el 10 %.
+//  - Proteína: 1,6 g/kg (Morton et al. 2018), 2,3-3,1 g/kg en déficit (ISSN 2017); por comida 0,40-0,55 g/kg (Iraki 2019).
 
 export const ACTIVITY = {
   sedentario: { factor: 1.2, label: "Sedentario", hint: "Trabajo sentado y casi nada de ejercicio" },
@@ -23,7 +25,23 @@ export const FLOORS = { mujer: 1200, hombre: 1500 };
 export const GOALS = {
   perder: { label: "Adelgazar" },
   mantener: { label: "Mantener mi peso" },
+  musculo: { label: "Ganar masa muscular", protein: 1.6 },
+  recomp: { label: "Ganar músculo y perder grasa", protein: 2.3 },
 };
+
+export const MUSCLE_SURPLUS = 0.10;
+export const RECOMP_DEFICIT = 500;
+export const PROTEIN_PER_MEAL = 0.4;
+
+// Gramos de proteína al día; solo para los objetivos de músculo.
+export function proteinTarget(profile) {
+  const g = GOALS[profile.goal]?.protein;
+  return g ? Math.round(profile.weightKg * g) : null;
+}
+
+export function proteinPerMeal(weightKg) {
+  return Math.round(weightKg * PROTEIN_PER_MEAL);
+}
 
 export function bmr({ sex, weightKg, heightCm, age }) {
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
@@ -50,9 +68,20 @@ export function dailyTarget(profile) {
     return { bmr: b, tdee: total, deficit: 0, target: total, floor, clampedToFloor: false, belowFloor: total < floor };
   }
 
-  const pace = PACES[profile.pace];
-  if (!pace) throw new Error(`ritmo desconocido: ${profile.pace}`);
-  const wanted = total - pace.deficit;
+  if (profile.goal === "musculo") {
+    const target = Math.round(total * (1 + MUSCLE_SURPLUS));
+    return { bmr: b, tdee: total, deficit: 0, surplus: target - total, target, floor, clampedToFloor: false, belowFloor: false };
+  }
+
+  let deficitWanted;
+  if (profile.goal === "recomp") {
+    deficitWanted = RECOMP_DEFICIT;
+  } else {
+    const pace = PACES[profile.pace];
+    if (!pace) throw new Error(`ritmo desconocido: ${profile.pace}`);
+    deficitWanted = pace.deficit;
+  }
+  const wanted = total - deficitWanted;
   const target = Math.max(wanted, floor);
   return {
     bmr: b,

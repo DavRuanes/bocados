@@ -1,6 +1,8 @@
 import { h, icon, brandMark } from "../dom.js";
 import { backButton } from "../app.js";
-import { MEALS, dateKey, keyToDate, mealTotals, dayStatus, formatInt } from "../../core/day.js";
+import { MEALS, dateKey, keyToDate, mealTotals, dayStatus, sumEntries, formatInt } from "../../core/day.js";
+import { proteinTarget, proteinPerMeal } from "../../core/calc.js";
+import { guideScreen } from "./guide.js";
 import { mealScreen } from "./meal.js";
 
 const DAY_FMT = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long" });
@@ -30,12 +32,33 @@ export function dayScreen(app, fixedDate = null) {
           h("h1", {}, isToday ? "Hoy" : longDate(date)),
           h("p", { class: "lede" }, isToday ? longDate(date) : `Límite de ese día: ${formatInt(target)} kcal`)),
         summaryPanel(st, totals, isToday),
+        proteinPanel(app, entries),
         h("section", { class: "panel flush", "aria-label": "Comidas del día" },
           MEALS.map((m) => mealRow(app, date, m, totals[m.id], entries.filter((e) => e.meal === m.id), target))),
         app.repo.preview ? h("p", { class: "note" }, "Vista previa en el navegador: los datos no se guardan al cerrar.") : null,
       );
     },
   };
+}
+
+// Proteína del día frente al objetivo (solo en los objetivos de músculo).
+function proteinPanel(app, entries) {
+  const goal = proteinTarget(app.profile);
+  if (!goal) return null;
+  const eaten = Math.round(sumEntries(entries).prot);
+  const ratio = Math.min(1, eaten / goal);
+  const left = Math.max(0, goal - eaten);
+  return h("section", { class: "panel", "aria-label": "Proteína del día" },
+    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px" } },
+      h("h2", {}, "Proteína"),
+      h("span", { class: "num", style: { fontWeight: "600" } }, `${formatInt(eaten)} / ${formatInt(goal)} g`)),
+    h("div", { class: "daybar" },
+      h("div", { class: "track", role: "img", "aria-label": `${eaten} de ${goal} gramos de proteína` },
+        h("span", { class: "seg", style: { width: `${ratio * 100}%`, background: "var(--accent)" } }))),
+    h("p", { class: "muted small" }, left > 0
+      ? `Te faltan ${formatInt(left)} g. Intenta tomar unos ${formatInt(proteinPerMeal(app.profile.weightKg))} g en cada comida.`
+      : "Has llegado a tu proteína de hoy."),
+    h("button", { class: "btn text", type: "button", style: { alignSelf: "flex-start", paddingLeft: "0" }, onclick: () => app.push(guideScreen(app)) }, "Qué tienes que hacer"));
 }
 
 function summaryPanel(st, totals, isToday) {

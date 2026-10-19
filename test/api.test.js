@@ -18,7 +18,7 @@ test("groqRequest builds an OpenAI-style vision request with JSON output", () =>
 
 test("groqRequest refuses more than 3 images and an empty key", () => {
   assert.throws(() => groqRequest("K", LABEL_PROMPT, ["a", "b", "c", "d"]), /3 fotos/);
-  assert.throws(() => groqRequest("", PLATE_PROMPT, ["a"]), /clave/);
+  assert.throws(() => groqRequest("", PLATE_PROMPT, ["a"]), (e) => e.kind === "auth" && !/groq|clave/i.test(e.message));
 });
 
 test("prompts ask for the fields the parsers read", () => {

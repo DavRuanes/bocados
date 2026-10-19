@@ -1,5 +1,5 @@
 import { h, icon, brandMark } from "../dom.js";
-import { ACTIVITY, PACES, GOALS, dailyTarget } from "../../core/calc.js";
+import { ACTIVITY, PACES, GOALS, dailyTarget, proteinTarget } from "../../core/calc.js";
 import { validateProfile } from "../../core/profile.js";
 import { dateKey, formatInt } from "../../core/day.js";
 
@@ -84,7 +84,9 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
       question("¿Qué quieres conseguir?"),
       h("div", { class: "choices", role: "radiogroup" },
         choice("goal", "perder", GOALS.perder.label, "Comer algo menos de lo que gastas"),
-        choice("goal", "mantener", GOALS.mantener.label, "Comer lo mismo que gastas")),
+        choice("goal", "mantener", GOALS.mantener.label, "Comer lo mismo que gastas"),
+        choice("goal", "musculo", GOALS.musculo.label, "Comer un poco más y mucha proteína, mientras entrenas fuerza"),
+        choice("goal", "recomp", GOALS.recomp.label, "Comer algo menos y mucha proteína, mientras entrenas fuerza")),
     ],
     sex: () => [
       question("¿Eres hombre o mujer?", "La fórmula usa valores distintos para cada uno."),
@@ -115,6 +117,7 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
       const p = v.profile;
       const c = dailyTarget(p);
       const factor = ACTIVITY[p.activity].factor;
+      const prot = proteinTarget(p);
       const save = () => finish({ ...p, target: c.target, calc: c, updatedAt: new Date().toISOString(), since: initial?.since ?? dateKey() });
       return [
         question("Tu límite diario"),
@@ -123,8 +126,10 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
           h("div", { class: "calc" },
             h("div", { class: "row" }, h("span", {}, "Gasto en reposo"), h("b", { class: "num" }, `${formatInt(c.bmr)} kcal`)),
             h("div", { class: "row" }, h("span", {}, `Con tu actividad (× ${String(factor).replace(".", ",")})`), h("b", { class: "num" }, `${formatInt(c.tdee)} kcal`)),
-            p.goal === "perder" ? h("div", { class: "row" }, h("span", {}, "Déficit para adelgazar"), h("b", { class: "num" }, `−${formatInt(c.deficit)} kcal`)) : null,
-            h("div", { class: "row total" }, h("span", {}, "Tu límite"), h("b", { class: "num" }, `${formatInt(c.target)} kcal`))),
+            c.deficit ? h("div", { class: "row" }, h("span", {}, p.goal === "recomp" ? "Déficit para perder grasa" : "Déficit para adelgazar"), h("b", { class: "num" }, `−${formatInt(c.deficit)} kcal`)) : null,
+            c.surplus ? h("div", { class: "row" }, h("span", {}, "Superávit para ganar músculo (10 %)"), h("b", { class: "num" }, `+${formatInt(c.surplus)} kcal`)) : null,
+            h("div", { class: "row total" }, h("span", {}, "Tu límite"), h("b", { class: "num" }, `${formatInt(c.target)} kcal`)),
+            prot ? h("div", { class: "row" }, h("span", {}, "Proteína al día"), h("b", { class: "num" }, `${formatInt(prot)} g`)) : null),
           c.clampedToFloor
             ? h("p", { class: "notice" }, `He subido tu límite a ${formatInt(c.floor)} kcal, el mínimo recomendado para ${p.sex === "mujer" ? "mujeres" : "hombres"} sin supervisión de un profesional.`)
             : null,
@@ -133,7 +138,9 @@ export function startOnboarding(app, root, { initial = null, onDone }) {
             : null),
         h("p", { class: "formula" },
           `Fórmula de Mifflin-St Jeor: 10 × peso + 6,25 × altura − 5 × edad ${p.sex === "hombre" ? "+ 5" : "− 161"}, multiplicado por tu nivel de actividad. `,
-          "Déficit y mínimos según Harvard Health. Es una estimación: revisa tu peso cada semana y ajusta tus datos si hace falta."),
+          p.goal === "musculo" || p.goal === "recomp"
+            ? "Superávit y proteína según la ISSN, Iraki y cols. 2019 y Morton y cols. 2018, para personas que entrenan fuerza. Es una estimación: revisa tu peso cada semana y ajusta tus datos si hace falta."
+            : "Déficit y mínimos según Harvard Health. Es una estimación: revisa tu peso cada semana y ajusta tus datos si hace falta."),
         h("div", { class: "foot" }, h("button", { class: "btn primary block big", type: "button", onclick: save }, initial ? "Guardar mis datos" : "Empezar a contar")),
       ];
     },

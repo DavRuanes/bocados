@@ -8,7 +8,7 @@ import { resolvePlate, entryFromItem } from "../../core/plate.js";
 import { afterAdd, errorPanel, loadingPanel, toMeal } from "./common.js";
 
 const SOURCE = {
-  usda: ["pill positive", "USDA"],
+  usda: ["pill positive", "Base de datos"],
   estimado: ["pill warning", "Estimado"],
   "sin-datos": ["pill negative", "Sin datos"],
 };
@@ -41,7 +41,7 @@ export function photoScreen(app, date, meal) {
           let n = 0;
           const { items, problem } = await resolvePlate(plate, (q) => {
             n += 1;
-            loading.setText(`Buscando calorías en USDA (${n} de ${plate.items.length})…`);
+            loading.setText(`Buscando calorías (${n} de ${plate.items.length})…`);
             return searchFood(q, key);
           });
           if (!app.stack.includes(this)) return;
@@ -118,10 +118,10 @@ function resultPanel(app, date, meal, dish, items, problem) {
 
   return h("section", { class: "panel" },
     h("h2", {}, dish),
-    problem ? h("p", { class: "notice" }, `${problem} Mientras tanto se usan los valores aproximados de la IA. Con tu propia clave de USDA (en Perfil) el límite es mucho mayor.`) : null,
+    problem ? h("p", { class: "notice" }, "La base de datos de calorías ha llegado a su límite por ahora, así que se usan los valores aproximados de la IA. Revisa los números o prueba más tarde.") : null,
     h("p", { class: "note" }, "Revisa los gramos: la IA los estima a ojo y es lo que más cambia el resultado."),
     rows,
     h("div", { class: "total-line" }, h("span", {}, "Total"), totalEl),
-    usedEstimate ? h("p", { class: "note" }, "«Estimado» significa que USDA no encontró ese alimento y se usa el valor aproximado de la IA.") : null,
+    usedEstimate ? h("p", { class: "note" }, "«Estimado» significa que la base de datos no encontró ese alimento y se usa el valor aproximado de la IA.") : null,
     addBtn);
 }
