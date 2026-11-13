@@ -3,6 +3,7 @@ import { backButton } from "../app.js";
 import { dateKey, formatInt, formatDec } from "../../core/day.js";
 import { parseNumber } from "../../core/profile.js";
 import { longDate } from "./day.js";
+import { burnedKcal } from "../../core/exercise.js";
 
 export const WORKOUT_TYPES = ["Espalda", "Pierna", "Brazo", "Hombro", "Fútbol", "HIIT", "Cardio", "Caminar", "Otro"];
 export const INTENSITIES = [
@@ -17,6 +18,8 @@ export async function activityPanel(app, date) {
   const workouts = await app.repo.workoutsForDate(date);
   const body = await app.repo.getBody(date);
   const minutes = workouts.reduce((s, w) => s + (Number(w.minutes) || 0), 0);
+  const kg = body.weight ?? app.profile?.weightKg;
+  const burned = workouts.reduce((s, w) => s + burnedKcal(w, kg), 0);
   const sub = workouts.length ? workouts.map((w) => w.type).join(", ") : "Sin ejercicio. Toca para añadir";
   const extra = [
     body.weight !== null ? `${formatDec(body.weight, 1)} kg` : null,
@@ -30,7 +33,7 @@ export async function activityPanel(app, date) {
         h("span", { class: "name", style: { display: "block" } }, "Ejercicio"),
         h("span", { class: "sub", style: { display: "block" } }, sub),
         extra ? h("span", { class: "sub", style: { display: "block" } }, extra) : null),
-      h("span", { class: "kcal num" }, workouts.length ? [formatInt(workouts.length), h("small", {}, workouts.length === 1 ? " sesión" : " sesiones")] : h("small", {}, "—")),
+      h("span", { class: "kcal num", title: "Calorías quemadas, estimación" }, workouts.length ? [`~${formatInt(burned)}`, h("small", {}, " kcal")] : h("small", {}, "—")),
       icon("chev", "chev")));
 }
 
@@ -42,6 +45,8 @@ export function activityScreen(app, date) {
       const isToday = date === dateKey();
       const workouts = await app.repo.workoutsForDate(date);
       const body = await app.repo.getBody(date);
+      const kg = body.weight ?? app.profile?.weightKg;
+      const burned = workouts.reduce((t, w) => t + burnedKcal(w, kg), 0);
 
       const field = (id, label, unit, attrs = {}) => h("div", { class: "field" },
         h("label", { for: id }, label),
@@ -113,9 +118,11 @@ export function activityScreen(app, date) {
                   },
                 }, "Quitar"),
                 h("span", { class: "sub num" },
-                  `${formatInt(w.minutes)} min`, h("span", { class: "pill" }, `Intensidad ${intensityLabel(w.intensity).toLowerCase()}`),
+                  `${formatInt(w.minutes)} min · ~${formatInt(burnedKcal(w, kg))} kcal`, h("span", { class: "pill" }, `Intensidad ${intensityLabel(w.intensity).toLowerCase()}`),
                   w.notes ? h("span", { style: { overflowWrap: "anywhere" } }, w.notes) : null)))
-            : h("p", { class: "empty-line" }, "Todavía no has apuntado ejercicio este día.")),
+            : h("p", { class: "empty-line" }, "Todavía no has apuntado ejercicio este día."),
+          workouts.length ? h("p", { class: "muted small", style: { padding: "8px 20px 12px" } },
+            `Has quemado unas ${formatInt(burned)} kcal con ejercicio (estimación con tu peso, los minutos y la intensidad). Es solo orientativo: tu límite diario ya cuenta con que entrenas, así que no te deja comer más.`) : null),
 
         h("form", { class: "panel", onsubmit: addWorkout, novalidate: true },
           h("h2", {}, "Añadir ejercicio"),

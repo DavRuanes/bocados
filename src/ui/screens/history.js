@@ -1,4 +1,5 @@
-import { h, icon } from "../dom.js";
+import { h, icon, toast } from "../dom.js";
+import { buildExport } from "../../core/export.js";
 import { dateKey, formatInt } from "../../core/day.js";
 import { longDate, dayScreen } from "./day.js";
 import { formatDec } from "../../core/day.js";
@@ -36,7 +37,40 @@ export function historyScreen(app) {
                   isOver ? h("span", { class: "pill negative", style: { gridColumn: "1 / -1", justifySelf: "start" } }, `${formatInt(d.kcal - d.target)} kcal por encima`) : null);
               })
             : h("p", { class: "empty-line" }, "Todavía no hay días anteriores. Lo que anotes hoy aparecerá aquí mañana.")),
+        exportPanel(app),
         h("button", { class: "btn block", type: "button", onclick: () => app.setTab("hoy") }, icon("today"), "Ir a hoy"));
     },
   };
+}
+
+// Copia los últimos 7 días (hoy incluido) como texto para pegárselo a Claude.
+function exportPanel(app) {
+  const box = h("textarea", { class: "input", readonly: true, rows: "8", hidden: true, style: { padding: "12px 14px", fontSize: "14px", minHeight: "160px" }, "aria-label": "Resumen para copiar" });
+  const copy = async () => {
+    const all = await app.repo.daySummaries(60);
+    const dates = [...new Set([dateKey(), ...all.map((d) => d.date)])].sort().reverse().slice(0, 7);
+    const days = [];
+    for (const date of dates) {
+      days.push({
+        date, target: await app.targetFor(date),
+        entries: await app.repo.entriesForDate(date),
+        workouts: await app.repo.workoutsForDate(date),
+        body: await app.repo.getBody(date),
+      });
+    }
+    const text = buildExport(app.profile, days);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Copiado. Pégalo en tu chat con Claude.");
+      box.hidden = true;
+    } catch {
+      box.value = text; box.hidden = false; box.focus(); box.select();
+      toast("Mantén pulsado el texto y elige Copiar.");
+    }
+  };
+  return h("section", { class: "panel", "aria-label": "Compartir con Claude" },
+    h("h2", {}, "Compartir con Claude"),
+    h("p", { class: "muted small" }, "Copia tus últimos 7 días (comidas, ejercicio, peso y sueño) y pégalos en el chat para que revise cómo vas."),
+    h("button", { class: "btn primary block", type: "button", onclick: copy }, "Copiar resumen de la semana"),
+    box);
 }
