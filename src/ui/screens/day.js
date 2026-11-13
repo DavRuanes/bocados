@@ -4,6 +4,7 @@ import { MEALS, dateKey, keyToDate, mealTotals, dayStatus, sumEntries, formatInt
 import { proteinTarget, proteinPerMeal } from "../../core/calc.js";
 import { guideScreen } from "./guide.js";
 import { mealScreen } from "./meal.js";
+import { activityPanel } from "./activity.js";
 
 const DAY_FMT = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long" });
 export const longDate = (key) => {
@@ -35,6 +36,7 @@ export function dayScreen(app, fixedDate = null) {
         proteinPanel(app, entries),
         h("section", { class: "panel flush", "aria-label": "Comidas del día" },
           MEALS.map((m) => mealRow(app, date, m, totals[m.id], entries.filter((e) => e.meal === m.id), target))),
+        await activityPanel(app, date),
         app.repo.preview ? h("p", { class: "note" }, "Vista previa en el navegador: los datos no se guardan al cerrar.") : null,
       );
     },

@@ -26,6 +26,9 @@ export async function seedDemo(repo) {
   await add(today, "comida", "Pechuga de pollo fileteada", 150, { kcal: 110, prot: 23, hc: 0, grasa: 1.5 }, "barcode", "barcode");
   await add(today, "comida", "Manzana", 180, { kcal: 52, prot: 0.3, hc: 14, grasa: 0.2 }, "foto", "usda");
   await add(today, "merienda", "Yogur natural", 125, { kcal: 61, prot: 3.4, hc: 4.7, grasa: 3.3 }, "etiqueta", "etiqueta");
+  await repo.addWorkout({ date: today, type: "Espalda", minutes: 60, intensity: "alta", notes: "Jalón al pecho 12×40, 12×50, 12×60" });
+  await repo.setBody(today, { weight: 92, sleep: 7 });
+  await repo.addWorkout({ date: day(1), type: "Fútbol", minutes: 90, intensity: "alta" });
   await add(day(1), "comida", "Macarrones con tomate", 320, { kcal: 150, prot: 5, hc: 26, grasa: 3 }, "foto", "estimado");
   await add(day(1), "cena", "Tortilla de patatas", 250, { kcal: 190, prot: 6.5, hc: 15, grasa: 11 }, "foto", "usda");
   await add(day(1), "merienda", "Galletas", 60, { kcal: 480, prot: 6, hc: 70, grasa: 20 }, "barcode", "barcode");

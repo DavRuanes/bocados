@@ -75,8 +75,8 @@ test("daySummaries totals each day with the target that applied, newest first", 
   await repo.setDayTarget("2026-10-17", 1600);
   const s = await repo.daySummaries(10);
   assert.deepEqual(s, [
-    { date: "2026-10-18", kcal: 1200, count: 1, target: 1520 },
-    { date: "2026-10-17", kcal: 1700, count: 2, target: 1600 },
+    { date: "2026-10-18", kcal: 1200, count: 1, target: 1520, workouts: [], weight: null, sleep: null },
+    { date: "2026-10-17", kcal: 1700, count: 2, target: 1600, workouts: [], weight: null, sleep: null },
   ]);
 });
 
@@ -176,4 +176,48 @@ test("reset also deletes my products", async () => {
   await repo.saveMyProduct({ code: "8410000000017", name: "Pavo", per100: { kcal: 1 } });
   await repo.reset();
   assert.equal(await repo.findMyProduct("8410000000017"), null);
+});
+
+test("workouts are stored per day and can be deleted", async () => {
+  const a = await repo.addWorkout({ date: "2026-11-13", type: "Espalda", minutes: 60, intensity: "alta", notes: "Jalón 12x40" });
+  await repo.addWorkout({ date: "2026-11-13", type: "Caminar", minutes: 30, intensity: "baja" });
+  await repo.addWorkout({ date: "2026-11-12", type: "Pierna", minutes: 50 });
+  const rows = await repo.workoutsForDate("2026-11-13");
+  assert.deepEqual(rows.map((r) => r.type), ["Espalda", "Caminar"]);
+  assert.equal(rows[0].notes, "Jalón 12x40");
+  assert.equal(rows[1].notes, null);
+  await repo.deleteWorkout(a);
+  assert.deepEqual((await repo.workoutsForDate("2026-11-13")).map((r) => r.type), ["Caminar"]);
+});
+
+test("body log stores weight and sleep, and clearing both removes the day", async () => {
+  assert.deepEqual(await repo.getBody("2026-11-13"), { weight: null, sleep: null });
+  await repo.setBody("2026-11-13", { weight: 92, sleep: 7 });
+  assert.deepEqual(await repo.getBody("2026-11-13"), { weight: 92, sleep: 7 });
+  await repo.setBody("2026-11-13", { weight: 91.6, sleep: null });
+  assert.deepEqual(await repo.getBody("2026-11-13"), { weight: 91.6, sleep: null });
+  await repo.setBody("2026-11-13", { weight: null, sleep: null });
+  assert.deepEqual(await repo.daySummaries(), []);
+});
+
+test("daySummaries includes days with only exercise or body data", async () => {
+  await repo.saveProfile(profile);
+  await repo.addEntry(entry({ date: "2026-11-11", kcal: 500 }));
+  await repo.addWorkout({ date: "2026-11-12", type: "Fútbol", minutes: 90, intensity: "alta" });
+  await repo.setBody("2026-11-13", { weight: 92, sleep: 7 });
+  await repo.addWorkout({ date: "2026-11-11", type: "Espalda", minutes: 60 });
+  const days = await repo.daySummaries();
+  assert.deepEqual(days.map((d) => d.date), ["2026-11-13", "2026-11-12", "2026-11-11"]);
+  assert.deepEqual(days[0], { date: "2026-11-13", kcal: 0, count: 0, target: 1520, workouts: [], weight: 92, sleep: 7 });
+  assert.deepEqual(days[1].workouts, ["Fútbol"]);
+  assert.equal(days[2].kcal, 500);
+  assert.deepEqual(days[2].workouts, ["Espalda"]);
+});
+
+test("reset also clears workouts and body log", async () => {
+  await repo.addWorkout({ date: "2026-11-13", type: "HIIT", minutes: 20 });
+  await repo.setBody("2026-11-13", { weight: 92 });
+  await repo.reset();
+  assert.deepEqual(await repo.workoutsForDate("2026-11-13"), []);
+  assert.deepEqual(await repo.getBody("2026-11-13"), { weight: null, sleep: null });
 });

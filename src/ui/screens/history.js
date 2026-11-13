@@ -1,6 +1,17 @@
 import { h, icon } from "../dom.js";
 import { dateKey, formatInt } from "../../core/day.js";
 import { longDate, dayScreen } from "./day.js";
+import { formatDec } from "../../core/day.js";
+
+// Ejercicio, peso y sueño del día, en una línea bajo la barra.
+function activityLine(d) {
+  const parts = [
+    d.workouts?.length ? d.workouts.join(", ") : null,
+    d.weight !== null && d.weight !== undefined ? `${formatDec(d.weight, 1)} kg` : null,
+    d.sleep !== null && d.sleep !== undefined ? `${formatDec(d.sleep, 1)} h de sueño` : null,
+  ].filter(Boolean);
+  return parts.length ? h("span", { class: "muted small", style: { gridColumn: "1 / -1" } }, parts.join(" · ")) : null;
+}
 
 export function historyScreen(app) {
   return {
@@ -21,6 +32,7 @@ export function historyScreen(app) {
                   h("span", { class: "name" }, longDate(d.date)),
                   h("span", { class: "kcal" }, `${formatInt(d.kcal)}`, h("small", {}, ` / ${formatInt(d.target)} kcal`)),
                   h("span", { class: "mini", "aria-hidden": "true" }, h("i", { class: isOver ? "over" : false, style: { width: `${ratio * 100}%` } })),
+                  activityLine(d),
                   isOver ? h("span", { class: "pill negative", style: { gridColumn: "1 / -1", justifySelf: "start" } }, `${formatInt(d.kcal - d.target)} kcal por encima`) : null);
               })
             : h("p", { class: "empty-line" }, "Todavía no hay días anteriores. Lo que anotes hoy aparecerá aquí mañana.")),

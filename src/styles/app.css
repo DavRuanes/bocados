@@ -238,6 +238,7 @@ h2 { font-size: var(--fs-section); font-weight: 600; line-height: 1.25; }
 .t-comida   { background: var(--comida-bg);   color: var(--comida-ink); }
 .t-merienda { background: var(--merienda-bg); color: var(--merienda-ink); }
 .t-cena     { background: var(--cena-bg);     color: var(--cena-ink); }
+.t-ejercicio { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
 
 /* ---------- Comida abierta ---------- */
 .meal-head { display: flex; align-items: center; gap: 14px; }

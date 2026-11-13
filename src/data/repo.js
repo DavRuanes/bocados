@@ -38,6 +38,22 @@ const SCHEMA = [
      updated_at TEXT NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS my_products_key ON my_products(key)`,
+  `CREATE TABLE IF NOT EXISTS workouts (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     date TEXT NOT NULL,
+     type TEXT NOT NULL,
+     minutes REAL NOT NULL DEFAULT 0,
+     intensity TEXT NOT NULL DEFAULT 'media',
+     notes TEXT,
+     created_at TEXT NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS workouts_date ON workouts(date)`,
+  `CREATE TABLE IF NOT EXISTS body_log (
+     date TEXT PRIMARY KEY,
+     weight REAL,
+     sleep REAL,
+     updated_at TEXT NOT NULL
+   )`,
   `CREATE TABLE IF NOT EXISTS settings (
      key TEXT PRIMARY KEY,
      value TEXT
@@ -113,19 +129,62 @@ export async function createRepo(db) {
     },
 
     async reset() {
-      for (const t of ["entries", "day_targets", "settings", "profile", "my_products"]) await db.run(`DELETE FROM ${t}`);
+      for (const t of ["entries", "day_targets", "settings", "profile", "my_products", "workouts", "body_log"]) await db.run(`DELETE FROM ${t}`);
     },
 
+    // Un resumen por día con algo anotado: comidas, ejercicio, peso o sueño.
     async daySummaries(limit = 60) {
       const profile = await this.getProfile();
       const fallback = profile?.target ?? null;
       const rows = await db.all(
-        `SELECT e.date AS date, SUM(e.kcal) AS kcal, COUNT(*) AS count, t.target AS target
-           FROM entries e LEFT JOIN day_targets t ON t.date = e.date
-          GROUP BY e.date ORDER BY e.date DESC LIMIT ?`,
+        `SELECT d.date AS date,
+                (SELECT COALESCE(SUM(kcal), 0) FROM entries e WHERE e.date = d.date) AS kcal,
+                (SELECT COUNT(*) FROM entries e WHERE e.date = d.date) AS count,
+                (SELECT target FROM day_targets t WHERE t.date = d.date) AS target,
+                (SELECT GROUP_CONCAT(type, '|') FROM workouts w WHERE w.date = d.date) AS types,
+                (SELECT weight FROM body_log b WHERE b.date = d.date) AS weight,
+                (SELECT sleep FROM body_log b WHERE b.date = d.date) AS sleep
+           FROM (SELECT date FROM entries UNION SELECT date FROM workouts UNION SELECT date FROM body_log) d
+          ORDER BY d.date DESC LIMIT ?`,
         [limit]
       );
-      return rows.map((r) => ({ date: r.date, kcal: Math.round(r.kcal), count: r.count, target: r.target ?? fallback }));
+      return rows.map((r) => ({
+        date: r.date, kcal: Math.round(r.kcal), count: r.count, target: r.target ?? fallback,
+        workouts: r.types ? String(r.types).split("|") : [], weight: r.weight ?? null, sleep: r.sleep ?? null,
+      }));
+    },
+
+    async addWorkout(w) {
+      const r = await db.run(
+        "INSERT INTO workouts (date, type, minutes, intensity, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        [w.date, String(w.type).slice(0, 40), Number(w.minutes) || 0, String(w.intensity || "media"),
+          w.notes ? String(w.notes).slice(0, 200) : null, now()]
+      );
+      return r.lastId;
+    },
+
+    async deleteWorkout(id) {
+      await db.run("DELETE FROM workouts WHERE id = ?", [id]);
+    },
+
+    async workoutsForDate(date) {
+      return db.all("SELECT id, date, type, minutes, intensity, notes FROM workouts WHERE date = ? ORDER BY id", [date]);
+    },
+
+    async getBody(date) {
+      const rows = await db.all("SELECT weight, sleep FROM body_log WHERE date = ?", [date]);
+      return rows.length ? { weight: rows[0].weight ?? null, sleep: rows[0].sleep ?? null } : { weight: null, sleep: null };
+    },
+
+    // Guarda peso y sueño del día; si los dos quedan vacíos, borra el registro.
+    async setBody(date, { weight = null, sleep = null }) {
+      const w = numOrNull(weight), sl = numOrNull(sleep);
+      if (w === null && sl === null) { await db.run("DELETE FROM body_log WHERE date = ?", [date]); return; }
+      await db.run(
+        `INSERT INTO body_log (date, weight, sleep, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(date) DO UPDATE SET weight = excluded.weight, sleep = excluded.sleep, updated_at = excluded.updated_at`,
+        [date, w, sl, now()]
+      );
     },
 
     async saveMyProduct({ code, name, brand = "", per100 }) {
